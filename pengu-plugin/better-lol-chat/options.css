@@ -74,6 +74,35 @@
   width: max-content;
   margin: 0;
   pointer-events: none;
+  background: #010a13;
+  border: 1px solid #463714;
+  color: var(--blc-muted);
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.025em;
+}
+
+.blc-bug-tip::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  background: #010a13;
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.blc-bug-tip[data-tooltip-position="bottom"]::after {
+  top: -5px;
+  border-top: 1px solid #463714;
+  border-left: 1px solid #463714;
+}
+
+.blc-bug-tip[data-tooltip-position="top"]::after {
+  bottom: -5px;
+  border-right: 1px solid #463714;
+  border-bottom: 1px solid #463714;
 }
 
 .blc-bug-tip[hidden] {
