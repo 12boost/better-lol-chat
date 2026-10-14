@@ -9,8 +9,8 @@ The plugin runs inside the client via Pengu. Host-page CSS is `style.css`. Messa
 
 | Surface         | Where                            | What lives there                                       |
 | --------------- | -------------------------------- | ------------------------------------------------------ |
-| Host page       | League client document           | Scoreboard, `lol-social-chat-room`, chat input, toggle |
-| Messages iframe | `iframe#embedded-messages-frame` | Message rows, names, join/leave lines, credit          |
+| Host page       | League client document           | Scoreboard, `lol-social-chat-room`, credit line, chat input, toggle |
+| Messages iframe | `iframe#embedded-messages-frame` | Message rows, names, join/leave lines                  |
 
 
 Host CSS does not apply inside the iframe. Do not call `textarea.focus()`. That scrolls the whole client.
@@ -20,6 +20,7 @@ Host CSS does not apply inside the iframe. Do not call `textarea.focus()`. That 
 ```text
 lol-social-chat-room[type="postGame"].scoreboard-v2
   .chat-box.focused-chat-box          open / fully expanded
+    #blc-credit
     iframe#embedded-messages-frame
     lol-social-chat-input
       textarea.chat-input
@@ -44,7 +45,7 @@ Chat is forced open only when a `.scoreboard-team-container` is actually on scre
 
 Sticky chat is separate from that open. On, scoreboard chat stays open until the chat button or Esc. Off, loss of focus closes it the way the client does, including after an automatic open. An open options panel is not loss of focus.
 
-While open on the scoreboard, the room is stretched with `blc-stretched`. The stretch paints the room and `.chat-box` solid `#010a13`. Vanilla leaves the focused room at `rgba(1, 10, 19, 0.95)` and fades `.chat-box` from transparent to `#010a13`; that fade would stretch with the window. The room's top lines up with the top of `.scoreboard-header-component.is-player-team`. Width and bottom stay where vanilla put them. Each visible `.scoreboard-header-component` gets a leading flex child, `.blc-header-chat-gutter`, whose right edge lines up with the chat window. `.scoreboard-header-team-name` then has a 5px left margin. While shifted, `.scoreboard-header-content` drops Riot's fixed 500px width (inline, so it wins) and shrinks to its text. The header's own spacer absorbs that width, so `.scoreboard-column-icons-container` stays put. The iframe fills the height above the input. Numbers are measured, not hardcoded, and recomputed on resize.
+While open on the scoreboard, the room is stretched with `blc-stretched`. The stretch paints the room and `.chat-box` solid `#010a13`. Vanilla leaves the focused room at `rgba(1, 10, 19, 0.95)` and fades `.chat-box` from transparent to `#010a13`; that fade would stretch with the window. The room's top lines up with the top of `.scoreboard-header-component.is-player-team`. Width and bottom stay where vanilla put them. Each visible `.scoreboard-header-component` gets a leading flex child, `.blc-header-chat-gutter`, whose right edge lines up with the chat window. `.scoreboard-header-team-name` then has a 5px left margin. While shifted, `.scoreboard-header-content` drops Riot's fixed 500px width (inline, so it wins) and shrinks to its text. The header's own spacer absorbs that width, so `.scoreboard-column-icons-container` stays put. The credit line sits above the iframe. The iframe fills the height between that line and the input. Numbers are measured, not hardcoded, and recomputed on resize.
 
 ## Messages iframe
 
@@ -157,7 +158,7 @@ LCU `groupchat` messages in the 2026-09-23 capture use `fromSummonerId: 0`. `fro
 
 ### Credit
 
-`#blc-credit` is appended to the iframe `<html>`, not inside the scrolling message list. It is `position: fixed` at the top of the frame so it does not scroll away. Text comes from `CREDIT_TEXT` in `index.js` (currently `better-lol-chat by wryguy`). Font family is copied from a `.chat-message` / `.message` node. Size is that node's size plus 2px, because LoL Body at the message size reads smaller than the old fallback. Line-height stays at 1.15 and vertical padding is 6px, so the banner does not inherit the message row's icon line-height. Class `blc-credit-hidden` hides it whenever chat is collapsed: the room has lost `focused-chat-box`, or our collapse flag is set. Sticky chat does not matter. The message-list padding added for the banner is removed with it. The gear on that line opens `#blc-options` on the host page. The X to its right collapses chat. If the options panel is open, that click closes the panel and collapses chat.
+`#blc-credit` is the first child of `.chat-box`, above `iframe#embedded-messages-frame`. The chat box is a column and the iframe is the flexible child, so the bar keeps its own height and the message scrollbar starts under it. Text comes from `CREDIT_TEXT` in `index.js` (currently `better-lol-chat by wryguy`). Type is static: `var(--font-body)`, 14px, weight 700, letter-spacing 0.025em, line-height 1.15, and 6px vertical padding. 14px is the 12px message size plus 2px, because LoL Body at the message size reads small on this line. Class `blc-credit-hidden` hides it whenever chat is collapsed: the room has lost `focused-chat-box`, or our collapse flag is set. Sticky chat does not matter. While the room is stretched, `--blc-frame-h` subtracts the bar. The gear on that line opens `#blc-options` on the host page. The X to its right collapses chat. If the options panel is open, that click closes the panel and collapses chat.
 
 Plugin version is the single `VERSION` constant in `index.js` (`X.X`). It is logged once on `load()` as `[better-lol-chat] vX.X` and shown on the update row in the options panel.
 

@@ -33,6 +33,90 @@ lol-social-chat-room[type='postGame'].blc-stretched:not(.blc-collapsed) lol-soci
   flex: 0 0 auto !important;
 }
 
+/* 14px is the 12px message size plus 2px. LoL Body at 12px reads small here. */
+.blc-credit {
+  position: relative;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 4px 50px 6px;
+  overflow: visible;
+  color: #e6d08c;
+  background-image: linear-gradient(to bottom, #231281, rgb(1 10 19 / 95%));
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  font-style: normal;
+  letter-spacing: 0.025em;
+}
+
+.blc-credit-label {
+  pointer-events: none;
+}
+
+.blc-credit-tools {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.blc-options-cog,
+.blc-chat-close {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  background-color: transparent;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: contain;
+  color: var(--blc-muted);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.blc-options-cog[data-blc-painted] {
+  background-color: var(--blc-cog-rest, var(--blc-muted));
+}
+
+.blc-chat-close[data-blc-painted] {
+  background-color: var(--blc-close-rest, var(--blc-muted));
+}
+
+.blc-options-cog[data-blc-painted]:hover,
+.blc-chat-close[data-blc-painted]:hover {
+  background-color: var(--blc-lit);
+}
+
+.blc-options-cog[data-blc-painted]:active,
+.blc-chat-close[data-blc-painted]:active {
+  background-color: var(--blc-pressed);
+}
+
+.blc-options-cog:not([data-blc-painted]):hover,
+.blc-chat-close:not([data-blc-painted]):hover {
+  color: var(--blc-lit);
+}
+
+.blc-options-cog:not([data-blc-painted]):active,
+.blc-chat-close:not([data-blc-painted]):active {
+  color: var(--blc-pressed);
+}
+
+.blc-credit.blc-credit-hidden {
+  display: none;
+}
+
 /* Leading flex item. Its right edge lines up with the chat window. */
 .scoreboard-header-component.blc-header-shifted > .blc-header-chat-gutter {
   flex: 0 0 auto;

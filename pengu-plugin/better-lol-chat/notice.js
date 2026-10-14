@@ -92,12 +92,10 @@ function revealNotice(doc) {
   if (!note || !list) return;
   const scroller = messageScroller(list) || doc.scrollingElement;
   if (!scroller) return;
-  const credit = doc.getElementById('blc-credit');
-  const creditH = credit && doc.defaultView?.getComputedStyle(credit).display !== 'none' ? credit.offsetHeight : 0;
   const viewTop = scroller === doc.scrollingElement || scroller === doc.body || scroller === doc.documentElement
     ? 0
     : scroller.getBoundingClientRect().top;
-  const delta = note.getBoundingClientRect().top - viewTop - creditH;
+  const delta = note.getBoundingClientRect().top - viewTop;
   scroller.scrollTop += delta;
 }
 

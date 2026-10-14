@@ -7,6 +7,7 @@ import {
   optionsAreOpen,
   placeOptionsPanel,
   attachCreditChrome,
+  hookFrameOptions,
   syncOptionsScrollbar,
 } from './options.js';
 import { refreshIdentities, clearRoster, players, seedRoster } from './roster.js';
@@ -365,6 +366,7 @@ function ensureOpen() {
     return;
   }
   chatRoom = room;
+  insertCredit(room);
   onScoreboard = scoreboardIsShowing();
   const enteredScoreboard = onScoreboard && !wasOnScoreboard;
   if (wasOnScoreboard && !onScoreboard) {
@@ -758,9 +760,11 @@ function stretchChat(room) {
 
   const input = room.querySelector('lol-social-chat-input');
   const inputH = Math.round(input?.getBoundingClientRect().height || 0);
+  syncCredit(room);
+  const creditH = creditBarHeight(room);
   setVar(room, '--blc-chat-top', `${Math.round(anchorTop - parentRect.top)}px`);
   setVar(room, '--blc-chat-h', `${height}px`);
-  setVar(room, '--blc-frame-h', `${Math.max(48, height - inputH)}px`);
+  setVar(room, '--blc-frame-h', `${Math.max(48, height - inputH - creditH)}px`);
   if (!room.classList.contains('blc-stretched')) {
     withFrozenScroll(() => room.classList.add('blc-stretched'));
   }
@@ -912,7 +916,7 @@ function onInputOpen(event) {
 }
 
 function onHostPointerDown(event) {
-  if (event.target?.closest?.('#blc-options, #blc-update-dialog')) return;
+  if (event.target?.closest?.('#blc-options, #blc-update-dialog, #blc-options-cog')) return;
   const menuWasOpen = optionsAreOpen();
   closeOptions();
   if (settings.stickyChat || !inPostGame || windowCollapsed) return;
@@ -1035,11 +1039,14 @@ function enhance() {
     const doc = getFrameDocument(room);
     if (doc) {
       injectFrameStyles(doc);
-      insertCredit(doc);
+      applyFrameSettings(doc);
+      hookFrameOptions(doc);
+      syncOptionsScrollbar(doc);
       rewriteMessages(doc);
       mountUpdateNotice(doc);
       mountNotice(doc);
     }
+    insertCredit(room);
   } catch (err) {
     console.warn(LOG, err);
   } finally {
@@ -1122,7 +1129,10 @@ function hookMessageFrame(room) {
     });
     frameObservers.set(doc, mo);
     injectFrameStyles(doc);
-    insertCredit(doc);
+    applyFrameSettings(doc);
+    hookFrameOptions(doc);
+    syncOptionsScrollbar(doc);
+    insertCredit(room);
   };
 
   iframe.addEventListener('load', attach);
@@ -1135,110 +1145,49 @@ function hookMessageFrame(room) {
   }, 250);
 }
 
-function scrollParent(el) {
-  let node = el?.parentElement;
-  const doc = el?.ownerDocument;
-  while (node && node !== doc?.documentElement) {
-    const style = doc.defaultView?.getComputedStyle(node);
-    if (style && /(auto|scroll)/.test(style.overflowY)) return node;
-    node = node.parentElement;
-  }
-  return doc?.scrollingElement || doc?.body || null;
+function creditElement(room = chatRoom || findPostGameRoom()) {
+  return getChatBox(room)?.querySelector(':scope > #blc-credit') || null;
 }
 
-function insertCredit(doc) {
-  applyFrameSettings(doc);
-  const host = doc.documentElement || doc.body;
-  if (!host) return;
-  let el = doc.getElementById('blc-credit');
+function creditBarHeight(room) {
+  const el = creditElement(room);
+  if (!el) return 0;
+  return Math.round(el.getBoundingClientRect().height);
+}
+
+function insertCredit(room) {
+  const box = getChatBox(room);
+  if (!box) return;
+  let el = document.getElementById('blc-credit');
   if (!el) {
-    el = doc.createElement('div');
+    el = document.createElement('div');
     el.id = 'blc-credit';
     el.className = 'blc-credit';
   }
-  attachCreditChrome(doc, el);
-  if (el.parentElement !== host) host.appendChild(el);
-  applyCreditFont(doc, el);
-  syncOptionsScrollbar(doc);
-  syncCredit(roomForCredit(doc) || chatRoom);
-}
-
-function roomForCredit(doc) {
-  const room = chatRoom || findPostGameRoom();
-  if (room && getFrameDocument(room) === doc) return room;
-  return null;
-}
-
-function syncCreditPadding(doc, el, hidden) {
-  const scroller = scrollParent(doc.querySelector('.message-box') || el);
-  if (!scroller || scroller === el) return;
-  if (!scroller.dataset.blcCreditPad) {
-    const base = parseFloat(doc.defaultView?.getComputedStyle(scroller).paddingTop) || 0;
-    scroller.dataset.blcCreditPad = String(base);
+  const iframe = box.querySelector(FRAME_SEL);
+  if (el.parentElement !== box || (iframe && el.nextElementSibling !== iframe)) {
+    box.insertBefore(el, iframe || null);
   }
-  const base = parseFloat(scroller.dataset.blcCreditPad) || 0;
-  const next = hidden ? `${base}px` : `${base + (el.offsetHeight || 22)}px`;
-  if (scroller.style.paddingTop !== next) scroller.style.paddingTop = next;
-}
-
-function applyCreditFont(doc, el) {
-  const sample = doc.querySelector('.chat-message .message, .chat-message, .system-message, .message-name');
-  const cs = sample ? doc.defaultView?.getComputedStyle(sample) : null;
-  const label = el.querySelector('.blc-credit-label');
-  if (label && cs) {
-    label.style.fontFamily = cs.fontFamily;
-    label.style.fontStyle = cs.fontStyle;
-    label.style.letterSpacing = cs.letterSpacing;
-    const size = parseFloat(cs.fontSize);
-    label.style.fontSize = size ? `${size + 2}px` : cs.fontSize;
-    label.style.lineHeight = '1.15';
-  }
-  const panel = document.getElementById('blc-options');
-  if (panel && cs) {
-    panel.style.fontFamily = cs.fontFamily;
-    panel.style.fontStyle = cs.fontStyle;
-    panel.style.letterSpacing = cs.letterSpacing;
-  }
+  attachCreditChrome(el);
+  syncCredit(room);
 }
 
 function syncCredit(room = chatRoom) {
-  const doc = room ? getFrameDocument(room) : null;
-  const el = doc?.getElementById('blc-credit');
+  const el = creditElement(room);
   if (!el) return;
   const hidden = !room || windowCollapsed || !isChatOpen(room);
   el.classList.toggle('blc-credit-hidden', hidden);
-  syncCreditPadding(doc, el, hidden);
 }
 
-function lolBodyBoldFace() {
-  for (const sheet of document.styleSheets) {
-    let rules;
-    try {
-      rules = sheet.cssRules;
-    } catch {
-      continue;
-    }
-    if (!rules || !sheet.href) continue;
-    for (const rule of rules) {
-      if (rule.type !== CSSRule.FONT_FACE_RULE) continue;
-      const family = rule.style.getPropertyValue('font-family').replace(/["']/g, '').trim();
-      const weight = rule.style.getPropertyValue('font-weight').trim();
-      const fontStyle = rule.style.getPropertyValue('font-style').trim() || 'normal';
-      if (family !== 'LoL Body' || fontStyle === 'italic') continue;
-      if (weight !== '700' && weight !== 'bold') continue;
-      const src = rule.style.getPropertyValue('src');
-      if (!src) continue;
-      const resolved = src.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g, (_match, _quote, url) => {
-        try {
-          return `url("${new URL(url, sheet.href).href}")`;
-        } catch {
-          return `url("${url}")`;
-        }
-      });
-      return `@font-face{font-family:"LoL Body";font-style:normal;font-weight:700;src:${resolved};}`;
-    }
-  }
-  return '';
+function retireFrameCredit(doc) {
+  doc.getElementById('blc-credit')?.remove();
+  doc.getElementById('blc-frame-font')?.remove();
+  const padded = doc.querySelector('[data-blc-credit-pad]');
+  if (!padded) return;
+  const base = padded.dataset.blcCreditPad;
+  if (base) padded.style.paddingTop = `${parseFloat(base) || 0}px`;
+  else padded.style.removeProperty('padding-top');
+  delete padded.dataset.blcCreditPad;
 }
 
 function injectFrameStyles(doc) {
@@ -1249,17 +1198,5 @@ function injectFrameStyles(doc) {
     (doc.head || doc.documentElement).appendChild(style);
   }
   if (style.textContent !== frameCss) style.textContent = frameCss;
-
-  const face = lolBodyBoldFace();
-  let fontStyle = doc.getElementById('blc-frame-font');
-  if (!face) {
-    fontStyle?.remove();
-    return;
-  }
-  if (!fontStyle) {
-    fontStyle = doc.createElement('style');
-    fontStyle.id = 'blc-frame-font';
-    (doc.head || doc.documentElement).appendChild(fontStyle);
-  }
-  if (fontStyle.textContent !== face) fontStyle.textContent = face;
+  retireFrameCredit(doc);
 }

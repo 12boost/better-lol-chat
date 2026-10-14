@@ -32,7 +32,9 @@
   overflow: hidden;
   box-sizing: border-box;
   text-align: left;
+  font-family: var(--font-body);
   font-weight: 400;
+  letter-spacing: 0.025em;
   color: var(--blc-text);
   background: var(--blc-panel);
   border: 1px solid var(--blc-line);
