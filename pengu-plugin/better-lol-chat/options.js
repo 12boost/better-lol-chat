@@ -320,7 +320,6 @@ function ensureBugTip() {
   tip.setAttribute('role', 'tooltip');
   const block = document.createElement('lol-uikit-content-block');
   block.setAttribute('type', 'tooltip-system');
-  block.style.whiteSpace = 'nowrap';
   const text = document.createElement('p');
   text.textContent = BUG_TIP_TEXT;
   block.appendChild(text);

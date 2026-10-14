@@ -85,6 +85,10 @@
   letter-spacing: 0.025em;
 }
 
+.blc-bug-tip lol-uikit-content-block {
+  white-space: nowrap;
+}
+
 .blc-bug-tip::after {
   content: "";
   position: absolute;
@@ -308,4 +312,53 @@
 .blc-color-reset:hover,
 .blc-color-reset:focus-visible {
   color: var(--blc-lit);
+}
+
+.blc-update {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 8px;
+  border-top: 1px solid var(--blc-line);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.35;
+  letter-spacing: 0;
+  color: var(--blc-status);
+  text-align: left;
+}
+
+.blc-update-line {
+  display: flex;
+  align-items: baseline;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.blc-update-ver {
+  color: var(--blc-emphasis);
+  font-weight: 700;
+}
+
+.blc-update-link {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  background: transparent;
+  color: var(--blc-name-ally, #16cae5);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.blc-update-link[hidden] {
+  display: none;
 }

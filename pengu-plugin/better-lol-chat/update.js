@@ -6,54 +6,6 @@ const RELEASES_URL = 'https://api.github.com/repos/rdavis0/better-lol-chat/relea
 const SAFE_TAG = /^[\w.+-]+$/;
 const DOWNLOAD_PREFIX = `${REPO_URL}/releases/download/`;
 const INSTALLER_NAME = /^blc-install-\d+(?:\.\d+){0,3}\.bat$/i;
-const STYLE_ID = 'blc-update-style';
-
-const STYLE = `
-.blc-update {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  flex: 0 0 auto;
-  margin: 0;
-  padding: 8px;
-  border-top: 1px solid var(--blc-line);
-  font-size: 11px;
-  font-weight: 400;
-  line-height: 1.35;
-  letter-spacing: 0;
-  color: var(--blc-status);
-  text-align: left;
-}
-.blc-update-line {
-  display: flex;
-  align-items: baseline;
-  flex: 1 1 auto;
-  flex-wrap: wrap;
-  gap: 6px;
-  min-width: 0;
-  margin: 0;
-  overflow-wrap: anywhere;
-}
-.blc-update-ver {
-  color: var(--blc-emphasis);
-  font-weight: 700;
-}
-.blc-update-link {
-  appearance: none;
-  border: 0;
-  margin: 0;
-  padding: 0;
-  background: transparent;
-  color: var(--blc-name-ally, #16cae5);
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-  text-decoration: underline;
-}
-.blc-update-link[hidden] {
-  display: none;
-}
-`;
 
 let cached = null;
 let checkGen = 0;
@@ -73,7 +25,6 @@ function compareVersions(a, b) {
 export function mountUpdateStatus(disclaimer, version) {
   const doc = disclaimer?.ownerDocument;
   if (!doc || !disclaimer.parentNode || doc.getElementById('blc-update')) return;
-  ensureStyle(doc);
   const current = normalizeVersion(version) || String(version || '').trim();
   const row = createUpdateRow(doc, current);
   const bug = disclaimer.parentNode.querySelector('.blc-bug-report');
@@ -347,11 +298,3 @@ function numericParts(value) {
   return normalizeVersion(value).split('.').filter(Boolean).map((part) => parseInt(part, 10) || 0);
 }
 
-function ensureStyle(doc) {
-  const parent = doc.head || doc.documentElement;
-  if (!parent || doc.getElementById(STYLE_ID)) return;
-  const style = doc.createElement('style');
-  style.id = STYLE_ID;
-  style.textContent = STYLE;
-  parent.appendChild(style);
-}
