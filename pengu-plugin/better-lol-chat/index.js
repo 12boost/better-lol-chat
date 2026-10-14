@@ -11,7 +11,7 @@ import {
 } from './options.js';
 import { refreshIdentities, clearRoster, players, seedRoster } from './roster.js';
 import { rewriteMessages, matchAlias, stripBidi } from './messages.js';
-import { installSampleCommands } from './sample.js';
+import { installSampleCommands } from './commands.js';
 import { beginPostGameUpdateCheck, mountUpdateNotice } from './update.js';
 import { beginPostGameNoticeCheck, mountNotice, clearNoticeMount } from './notice.js';
 import { closeUpdateDialog, updateDialogIsOpen } from './update-dialog.js';
@@ -1187,10 +1187,11 @@ function applyCreditFont(doc, el) {
   const label = el.querySelector('.blc-credit-label');
   if (label && cs) {
     label.style.fontFamily = cs.fontFamily;
-    label.style.fontSize = cs.fontSize;
     label.style.fontStyle = cs.fontStyle;
     label.style.letterSpacing = cs.letterSpacing;
-    label.style.lineHeight = cs.lineHeight;
+    const size = parseFloat(cs.fontSize);
+    label.style.fontSize = size ? `${size + 2}px` : cs.fontSize;
+    label.style.lineHeight = '1.15';
   }
   const panel = document.getElementById('blc-options');
   if (panel && cs) {
@@ -1209,6 +1210,37 @@ function syncCredit(room = chatRoom) {
   syncCreditPadding(doc, el, hidden);
 }
 
+function lolBodyBoldFace() {
+  for (const sheet of document.styleSheets) {
+    let rules;
+    try {
+      rules = sheet.cssRules;
+    } catch {
+      continue;
+    }
+    if (!rules || !sheet.href) continue;
+    for (const rule of rules) {
+      if (rule.type !== CSSRule.FONT_FACE_RULE) continue;
+      const family = rule.style.getPropertyValue('font-family').replace(/["']/g, '').trim();
+      const weight = rule.style.getPropertyValue('font-weight').trim();
+      const fontStyle = rule.style.getPropertyValue('font-style').trim() || 'normal';
+      if (family !== 'LoL Body' || fontStyle === 'italic') continue;
+      if (weight !== '700' && weight !== 'bold') continue;
+      const src = rule.style.getPropertyValue('src');
+      if (!src) continue;
+      const resolved = src.replace(/url\(\s*(['"]?)([^'")]+)\1\s*\)/g, (_match, _quote, url) => {
+        try {
+          return `url("${new URL(url, sheet.href).href}")`;
+        } catch {
+          return `url("${url}")`;
+        }
+      });
+      return `@font-face{font-family:"LoL Body";font-style:normal;font-weight:700;src:${resolved};}`;
+    }
+  }
+  return '';
+}
+
 function injectFrameStyles(doc) {
   let style = doc.getElementById('blc-frame-style');
   if (!style) {
@@ -1217,4 +1249,17 @@ function injectFrameStyles(doc) {
     (doc.head || doc.documentElement).appendChild(style);
   }
   if (style.textContent !== frameCss) style.textContent = frameCss;
+
+  const face = lolBodyBoldFace();
+  let fontStyle = doc.getElementById('blc-frame-font');
+  if (!face) {
+    fontStyle?.remove();
+    return;
+  }
+  if (!fontStyle) {
+    fontStyle = doc.createElement('style');
+    fontStyle.id = 'blc-frame-font';
+    (doc.head || doc.documentElement).appendChild(fontStyle);
+  }
+  if (fontStyle.textContent !== face) fontStyle.textContent = face;
 }

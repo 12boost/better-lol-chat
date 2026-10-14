@@ -71,12 +71,35 @@ export function updateDialogIsOpen() {
   return !!root && !root.hidden;
 }
 
+function scoreboardScreen() {
+  const nodes = document.querySelectorAll('.rcp-fe-viewport-main .screen-root, .screen-root');
+  for (const el of nodes) {
+    const rect = el.getBoundingClientRect();
+    if (rect.width > 1 && rect.height > 1) return el;
+  }
+  return null;
+}
+
+function placeDialog(root) {
+  const frame = root.querySelector('.dialog-frame');
+  const screen = scoreboardScreen();
+  if (!frame || !screen) return;
+  const rect = screen.getBoundingClientRect();
+  frame.style.left = `${Math.round(rect.left + rect.width / 2)}px`;
+  frame.style.top = `${Math.round(rect.top + rect.height / 2)}px`;
+}
+
 export function closeUpdateDialog() {
   viewGen += 1;
   const root = document.getElementById(DIALOG_ID);
   if (root) root.hidden = true;
   active = null;
 }
+
+window.addEventListener('resize', () => {
+  const root = document.getElementById(DIALOG_ID);
+  if (root && !root.hidden) placeDialog(root);
+});
 
 /**
  * options: { version, notes, downloadUrl, installerName, releaseUrl, onSkip }
@@ -93,6 +116,7 @@ export function showUpdateDialog(options) {
   fillNotes(root, options.notes);
   setView(root, 'notes');
   root.hidden = false;
+  placeDialog(root);
   syncNotesMask(root.querySelector('.blc-dialog-notes'));
 }
 

@@ -1,4 +1,5 @@
 .blc-dialog {
+  --blc-notes: rgb(1 10 19 / 60%);
   position: fixed;
   inset: 0;
   /* Above #blc-options (10) and .blc-bug-tip (11) so it works when opened from the panel. */
@@ -6,7 +7,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgb(0 0 0 / 55%);
+  background: var(--blc-scrim);
 }
 
 .blc-dialog [hidden],
@@ -15,8 +16,12 @@
 }
 
 .blc-dialog .dialog-frame {
+  position: absolute;
+  left: 50%;
+  top: 50%;
   width: 440px;
   max-width: calc(100vw - 24px);
+  transform: translate(-50%, -50%);
 }
 
 /* dialog-small is 296px. Stretch that column to the frame. */
@@ -41,8 +46,8 @@
   box-sizing: border-box;
   min-height: 80px;
   max-height: 180px;
-  border: 1px solid #3a2a08;
-  background: rgb(1 10 19 / 60%);
+  border: 1px solid var(--blc-line);
+  background: var(--blc-notes);
   overflow: hidden;
 }
 
@@ -67,7 +72,7 @@
   line-height: 16px;
   letter-spacing: 0.025em;
   -webkit-font-smoothing: subpixel-antialiased;
-  color: #a09b8c;
+  color: var(--blc-muted);
 }
 
 .blc-dialog-notes-heading {
@@ -111,7 +116,7 @@
   padding: 0;
   border: 0;
   background: transparent;
-  color: #a09b8c;
+  color: var(--blc-muted);
   font: inherit;
   cursor: pointer;
   text-decoration: underline;
@@ -119,11 +124,11 @@
 
 .blc-dialog-link:hover,
 .blc-dialog-link:focus-visible {
-  color: #f0e6d2;
+  color: var(--blc-lit);
 }
 
 .blc-dialog-link:active {
-  color: #5b5a56;
+  color: var(--blc-pressed);
 }
 
 .blc-dialog-skip {
@@ -146,7 +151,7 @@
   line-height: 16px;
   letter-spacing: 0.025em;
   -webkit-font-smoothing: subpixel-antialiased;
-  color: #a09b8c;
+  color: var(--blc-muted);
   animation: blc-install-in 220ms ease;
 }
 
@@ -176,7 +181,7 @@
 .blc-dialog-install .blc-dialog-fallback {
   margin-top: 16px;
   font-size: 10px;
-  color: #a09b8c;
+  color: var(--blc-muted);
 }
 
 @keyframes blc-install-in {

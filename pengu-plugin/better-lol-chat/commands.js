@@ -2,6 +2,7 @@
  * Dev sample for the post-game messages iframe.
  * Console: window.__blcInjectSampleMessages()
  * Chat: /sample or /demo, then Enter. The line is not sent.
+ * Chat: /clear removes the message rows. The line is not sent.
  * Chat: /dialog shows the update dialog with sample release notes.
  * Chat: /notice shows the remote notice that would be due (ignores the game gap).
  */
@@ -46,6 +47,14 @@ const LINES = [
   ['other-team', 1, 'still thinking about the steal'],
   ['my-team', 3, 'gg wp'],
 ];
+
+export function clearChatMessages() {
+  const frame = document.querySelector(
+    'lol-social-chat-room[type="postGame"] iframe#embedded-messages-frame, lol-social-chat-room[type="postGame"] iframe',
+  );
+  const live = frame?.contentDocument || frame?.contentWindow?.document;
+  live?.querySelectorAll('.messages .message-box:not(.blc-injected)').forEach((el) => el.remove());
+}
 
 export function clearSampleMessages() {
   const frame = document.querySelector(
@@ -296,6 +305,7 @@ function scrollParent(el) {
 const CHAT_COMMANDS = new Map([
   ['/sample', injectSampleMessages],
   ['/demo', injectSampleMessages],
+  ['/clear', clearChatMessages],
   ['/dialog', previewUpdateDialog],
   ['/notice', previewNotice],
 ]);

@@ -7,6 +7,7 @@ Implemented behavior is the plugin source plus the docs below.
 ## Read first
 
 - `docs/CHAT_INTERFACE.md` — post-game DOM, selectors, identity, and what this plugin already changes.
+- `docs/PREVIEW.md` — local scoreboard preview. Best effort, not a one-to-one client render.
 - `docs/fixtures/` — trimmed exports named from that doc.
 - Plugin source: `pengu-plugin/better-lol-chat/`.
 

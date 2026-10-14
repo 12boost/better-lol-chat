@@ -16,12 +16,12 @@ const STYLE = `
   flex: 0 0 auto;
   margin: 0;
   padding: 8px;
-  border-top: 1px solid #3a2a08;
+  border-top: 1px solid var(--blc-line);
   font-size: 11px;
   font-weight: 400;
   line-height: 1.35;
   letter-spacing: 0;
-  color: #d5d0c4;
+  color: var(--blc-status);
   text-align: left;
 }
 .blc-update-line {
@@ -35,7 +35,7 @@ const STYLE = `
   overflow-wrap: anywhere;
 }
 .blc-update-ver {
-  color: var(--blc-credit, #ffd700);
+  color: var(--blc-emphasis);
   font-weight: 700;
 }
 .blc-update-link {

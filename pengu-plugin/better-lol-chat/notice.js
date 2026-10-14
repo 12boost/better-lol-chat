@@ -18,6 +18,7 @@ let pick = null;
 let pickResolved = false;
 let counted = false;
 let noticeDoc = null;
+let forcePreview = false;
 
 function noticeState() {
   if (!settings.notice || typeof settings.notice !== 'object') {
@@ -40,6 +41,7 @@ export function beginPostGameNoticeCheck() {
   pick = null;
   pickResolved = false;
   counted = false;
+  forcePreview = false;
   fetchConfig()
     .then((config) => {
       if (gen !== checkGen) return;
@@ -65,11 +67,7 @@ export function mountNotice(doc) {
 }
 
 export function previewNotice() {
-  const config = cached?.notices?.length ? cached : {
-    gap: DEFAULT_GAP,
-    priorityGap: DEFAULT_GAP,
-    notices: [PREVIEW],
-  };
+  const config = previewConfig();
   const chosen = chooseNotice(config, true);
   if (!chosen) {
     console.warn('[better-lol-chat] no notice to preview');
@@ -82,8 +80,25 @@ export function previewNotice() {
     console.warn('[better-lol-chat] open post-game chat before /notice');
     return;
   }
+  forcePreview = true;
   noticeDoc = doc;
   placeNotice(doc, chosen);
+  revealNotice(doc);
+}
+
+function revealNotice(doc) {
+  const note = doc.querySelector('.blc-notice');
+  const list = note?.parentElement;
+  if (!note || !list) return;
+  const scroller = messageScroller(list) || doc.scrollingElement;
+  if (!scroller) return;
+  const credit = doc.getElementById('blc-credit');
+  const creditH = credit && doc.defaultView?.getComputedStyle(credit).display !== 'none' ? credit.offsetHeight : 0;
+  const viewTop = scroller === doc.scrollingElement || scroller === doc.body || scroller === doc.documentElement
+    ? 0
+    : scroller.getBoundingClientRect().top;
+  const delta = note.getBoundingClientRect().top - viewTop - creditH;
+  scroller.scrollTop += delta;
 }
 
 window.__blcPreviewNotice = previewNotice;
@@ -150,9 +165,23 @@ function parseDate(value) {
   return value;
 }
 
+function previewConfig() {
+  if (cached?.notices?.length) return cached;
+  return {
+    gap: DEFAULT_GAP,
+    priorityGap: DEFAULT_GAP,
+    notices: [PREVIEW],
+  };
+}
+
 function paintNotice() {
   const doc = noticeDoc;
   if (!doc?.querySelector) return;
+  if (forcePreview) {
+    const chosen = chooseNotice(previewConfig(), true);
+    if (chosen) placeNotice(doc, chosen);
+    return;
+  }
   if (!cached) {
     removeNotice(doc);
     return;

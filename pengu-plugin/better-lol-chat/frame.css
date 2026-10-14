@@ -7,8 +7,13 @@
   --blc-message-mine: #bfb9a5;
   --blc-leave-name: inherit;
   --blc-celebration: #a3862e;
-  --blc-credit: #ffd700;
+  --blc-gold: #ffd700;
+  --blc-credit: #e6d08c;
   --blc-credit-bg: #231281;
+  /* Same chrome colors as options.css. This sheet is the messages iframe. */
+  --blc-muted: #a09b8c;
+  --blc-lit: #f0e6d2;
+  --blc-pressed: #5b5a56;
 }
 
 .message-box.blc-hide-join {
@@ -98,7 +103,7 @@
 }
 
 .message-box.blc-update-note .message-name {
-  color: #ffd700 !important;
+  color: var(--blc-gold) !important;
   font-weight: 700;
 }
 
@@ -108,7 +113,7 @@
 }
 
 .message-box.blc-notice .message-name {
-  color: var(--blc-credit, #ffd700) !important;
+  color: var(--blc-gold) !important;
   font-weight: 700;
 }
 
@@ -143,7 +148,7 @@
   align-items: center;
   justify-content: center;
   margin: 0 !important;
-  padding: 4px 50px 6px;
+  padding: 6px 50px;
   color: var(--blc-credit) !important;
   font-weight: 700 !important;
   background-image: linear-gradient(to bottom, var(--blc-credit-bg), rgb(1 10 19 / 95%));
@@ -154,6 +159,7 @@
 
 .blc-credit-label {
   pointer-events: none;
+  line-height: 1.15;
 }
 
 .blc-credit-tools {
@@ -177,38 +183,38 @@
   background-position: center;
   background-repeat: no-repeat;
   background-size: contain;
-  color: #a09b8c;
+  color: var(--blc-muted);
   font-size: 14px;
   line-height: 1;
   cursor: pointer;
 }
 
 .blc-options-cog[data-blc-painted] {
-  background-color: var(--blc-cog-rest, #a09b8c);
+  background-color: var(--blc-cog-rest, var(--blc-muted));
 }
 
 .blc-chat-close[data-blc-painted] {
-  background-color: var(--blc-close-rest, #a09b8c);
+  background-color: var(--blc-close-rest, var(--blc-muted));
 }
 
 .blc-options-cog[data-blc-painted]:hover,
 .blc-chat-close[data-blc-painted]:hover {
-  background-color: #f0e6d2;
+  background-color: var(--blc-lit);
 }
 
 .blc-options-cog[data-blc-painted]:active,
 .blc-chat-close[data-blc-painted]:active {
-  background-color: #5b5a56;
+  background-color: var(--blc-pressed);
 }
 
 .blc-options-cog:not([data-blc-painted]):hover,
 .blc-chat-close:not([data-blc-painted]):hover {
-  color: #f0e6d2;
+  color: var(--blc-lit);
 }
 
 .blc-options-cog:not([data-blc-painted]):active,
 .blc-chat-close:not([data-blc-painted]):active {
-  color: #5b5a56;
+  color: var(--blc-pressed);
 }
 
 .blc-credit.blc-credit-hidden {
