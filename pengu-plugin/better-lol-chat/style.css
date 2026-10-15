@@ -132,6 +132,78 @@ lol-social-chat-room[type='postGame'].blc-stretched:not(.blc-collapsed) lol-soci
   flex-shrink: 0;
 }
 
+/* Clearance between the stretched chat and the row actions button.
+   The tall strip packs that button with the level and icon, so it does not need this. */
+html:not(.blc-tall-strip):has(lol-social-chat-room[type='postGame'].blc-stretched:not(.blc-collapsed))
+  :is(
+    .scoreboard-row-details-content,
+    .strawberry-scoreboard-row-details-content,
+    .jade-scoreboard-row-details-content
+  ).horizontal-flex-box
+  > :is(
+    .scoreboard-row-actions-button-container,
+    .strawberry-scoreboard-row-actions-button-container,
+    .jade-scoreboard-row-actions-button-container
+  ).centered-flex-box {
+  margin-left: 4px !important;
+}
+
+/* Tall chat with compact champion icon and level: level, icon, and actions sit between the chat and the runes. */
+html.blc-tall-strip :is(
+  .scoreboard-row-skin-background,
+  .scoreboard-row-skin-background-strawberry,
+  .scoreboard-row-skin-background-jade,
+  .scoreboard-row-skin-overlay,
+  .scoreboard-row-name-and-champ-container,
+  .strawberry-scoreboard-row-name-and-champ-container,
+  .jade-scoreboard-row-name-and-champ-container,
+  .scoreboard-row-spacer,
+  .strawberry-scoreboard-row-spacer,
+  .jade-scoreboard-row-spacer,
+  .scoreboard-row-pike,
+  .strawberry-scoreboard-row-pike,
+  .jade-scoreboard-row-pike
+) {
+  display: none !important;
+}
+
+html.blc-tall-strip :is(
+  .scoreboard-row-player-details-container,
+  .strawberry-scoreboard-row-player-details-container,
+  .jade-scoreboard-row-player-details-container
+) > :is(
+  .scoreboard-row-details-content,
+  .strawberry-scoreboard-row-details-content,
+  .jade-scoreboard-row-details-content
+) {
+  left: 0 !important;
+  width: 100% !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  gap: 4px;
+  padding-right: 8px;
+  box-sizing: border-box;
+}
+
+html.blc-tall-strip :is(
+  .scoreboard-row-position-level-container,
+  .strawberry-scoreboard-row-position-level-container,
+  .jade-scoreboard-row-position-level-container
+) {
+  width: auto !important;
+  min-width: 0 !important;
+  flex: 0 0 auto !important;
+  margin-left: 0 !important;
+}
+
+html.blc-tall-strip :is(
+  .scoreboard-row-actions-button-container,
+  .strawberry-scoreboard-row-actions-button-container,
+  .jade-scoreboard-row-actions-button-container
+) {
+  margin-left: 8px !important;
+}
+
 /* Drop the red inset top shadow on the focused post-game chat chrome. */
 lol-social-chat-room[type='postGame'].focused-chat-box:not(.chat-room-disabled)::after,
 lol-social-chat-room[type='postGame'] .shadow-effect {
@@ -162,6 +234,7 @@ lol-social-chat-room[type='postGame'] .shadow-effect {
   flex: 0 0 auto;
   object-fit: cover;
   border-radius: 2px;
+  pointer-events: none;
 }
 
 /* Riot dims the not-in-chat splash to 0.5. Match that on the mid-row icon. The level stays full color. */

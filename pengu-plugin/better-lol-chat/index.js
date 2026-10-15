@@ -461,7 +461,12 @@ const ROW_NAME_SEL =
   '.scoreboard-row-player-name, .strawberry-scoreboard-row-player-name, .jade-scoreboard-row-player-name';
 const ROW_CHAMP_SEL =
   '.scoreboard-row-champ-name, .strawberry-scoreboard-row-champ-name, .jade-scoreboard-row-champ-name';
+const DETAILS_CONTENT_SEL =
+  '.scoreboard-row-details-content, .strawberry-scoreboard-row-details-content, .jade-scoreboard-row-details-content';
 const MID_ROW = 'blc-mid-row';
+const MID_GAP = 4;
+const STRIP_ACTIONS_PAD = 8;
+const TALL_STRIP = 'blc-tall-strip';
 
 let midRowSizes = new WeakMap();
 const midRowInline = new WeakMap();
@@ -472,6 +477,7 @@ const RUNE_SEL =
   '.scoreboard-row-keystone-alignment-container, .strawberry-scoreboard-row-keystone-alignment-container, .jade-scoreboard-row-keystone-alignment-container';
 let levelSlot = 0;
 let levelSlotKey = '';
+let layoutMode = '';
 
 function playerForRow(row) {
   const name = stripBidi(row.querySelector(ROW_NAME_SEL)?.textContent || '').trim();
@@ -485,7 +491,9 @@ function playerForRow(row) {
 }
 
 function clearScoreboardIcons() {
-  document.querySelectorAll('.' + MID_ROW + ', .blc-row-champ').forEach((el) => el.remove());
+  layoutMode = '';
+  document.documentElement.classList.remove(TALL_STRIP);
+  document.querySelectorAll('.' + MID_ROW + ', .blc-mid-row-icon, .blc-row-champ').forEach((el) => el.remove());
   for (const el of midRowTouched) {
     const saved = midRowInline.get(el);
     if (!saved || !el.isConnected) continue;
@@ -519,6 +527,17 @@ function midRowHidden() {
   const room = chatRoom || findPostGameRoom();
   if (!room) return false;
   return room.classList.contains(COLLAPSED_CLASS) || !isChatOpen(room);
+}
+
+function tallStripActive() {
+  if (!settings.tallerChat || midRowHidden()) return false;
+  const room = chatRoom || findPostGameRoom();
+  return !!(room && room.classList.contains('blc-stretched') && !room.classList.contains(COLLAPSED_CLASS));
+}
+
+function scoreboardLayoutMode() {
+  if (midRowHidden()) return '';
+  return tallStripActive() ? 'strip' : 'mid';
 }
 
 function outerWidth(el) {
@@ -579,6 +598,9 @@ function tightenRuneGap(key) {
 function captureMidRowSizes(row, content) {
   const saved = midRowSizes.get(row);
   if (saved) return saved;
+  const root = document.documentElement;
+  const strip = root.classList.contains(TALL_STRIP);
+  if (strip) root.classList.remove(TALL_STRIP);
   const badge = content.querySelector(':scope > .' + MID_ROW);
   const next = badge?.nextSibling;
   if (badge) badge.remove();
@@ -587,8 +609,10 @@ function captureMidRowSizes(row, content) {
     controls: outerWidth(row.querySelector(CONTROLS_SEL)),
     actions: outerWidth(content.querySelector(ACTIONS_SEL)),
     items: outerWidth(content.querySelector(ITEMS_SEL)),
+    pike: outerWidth(content.querySelector(PIKE_SEL)),
   };
   if (badge) content.insertBefore(badge, next);
+  if (strip) root.classList.add(TALL_STRIP);
   midRowSizes.set(row, sizes);
   return sizes;
 }
@@ -610,28 +634,54 @@ function levelBoxWidth(realStyle) {
   return levelSlot;
 }
 
-function ensureMidRow(content, key) {
+function ensureChampIcon(row) {
+  let img = row.querySelector('.blc-mid-row-icon');
+  if (!img) {
+    img = document.createElement('img');
+    img.className = 'blc-mid-row-icon';
+    img.alt = '';
+    img.draggable = false;
+  }
+  return img;
+}
+
+function ensureMidRow(row, content, key) {
   let box = content.querySelector(':scope > .' + MID_ROW);
   if (!box) {
     box = document.createElement('div');
     box.className = MID_ROW;
     const level = document.createElement('span');
     level.className = MID_ROW + '-level';
-    const img = document.createElement('img');
-    img.className = MID_ROW + '-icon';
-    img.alt = '';
-    img.draggable = false;
-    box.append(level, img);
+    box.append(level);
   }
+  const img = ensureChampIcon(row);
+  if (img.parentElement !== box) box.append(img);
   if (box.nextElementSibling !== key) content.insertBefore(box, key);
   return box;
 }
 
+function paintChampIcon(img, iconSize, iconPath) {
+  img.style.width = iconSize + 'px';
+  img.style.height = iconSize + 'px';
+  if (img.getAttribute('src') !== iconPath) img.src = iconPath;
+}
+
+function placeStripIcon(detailsContent, img) {
+  const actions = [...detailsContent.children].find((el) => el.matches(ACTIONS_SEL));
+  if (img.parentElement !== detailsContent || img.nextElementSibling !== actions) {
+    detailsContent.insertBefore(img, actions || null);
+  }
+}
+
 function placeScoreboardIcons() {
-  if (midRowHidden()) {
-    clearScoreboardIcons();
+  const mode = scoreboardLayoutMode();
+  if (mode !== layoutMode) clearScoreboardIcons();
+  layoutMode = mode;
+  if (mode === 'strip') {
+    placeTallStrip();
     return;
   }
+  if (mode !== 'mid') return;
   const iconSize = champIconSize();
   const seen = new Set();
   document.querySelectorAll('.blc-row-champ').forEach((el) => el.remove());
@@ -647,9 +697,9 @@ function placeScoreboardIcons() {
     const levelNode = row.querySelector(LEVEL_SEL);
     const levelText = stripBidi(levelNode?.textContent || '').replace(/\s+/g, '');
     const sizes = captureMidRowSizes(row, content);
-    const box = ensureMidRow(content, key);
+    const box = ensureMidRow(row, content, key);
     const levelEl = box.querySelector('.' + MID_ROW + '-level');
-    const img = box.querySelector('.' + MID_ROW + '-icon');
+    const img = ensureChampIcon(row);
     const realStyle = levelNode ? getComputedStyle(levelNode) : null;
 
     levelEl.textContent = levelText;
@@ -663,9 +713,7 @@ function placeScoreboardIcons() {
       levelEl.style.width = levelBoxWidth(realStyle) + 'px';
     }
 
-    img.style.width = iconSize + 'px';
-    img.style.height = iconSize + 'px';
-    if (img.getAttribute('src') !== player.iconPath) img.src = player.iconPath;
+    paintChampIcon(img, iconSize, player.iconPath);
 
     const boxStyle = getComputedStyle(box);
     const badgeWidth = box.offsetWidth + parseFloat(boxStyle.marginLeft) + parseFloat(boxStyle.marginRight);
@@ -677,6 +725,60 @@ function placeScoreboardIcons() {
     seen.add(box);
   }
   document.querySelectorAll('.' + MID_ROW).forEach((el) => {
+    if (!seen.has(el)) el.remove();
+  });
+}
+
+function stripBadgeWidth(levelNode, iconSize) {
+  const levelW = levelNode ? levelBoxWidth(getComputedStyle(levelNode)) : 0;
+  return MID_GAP + levelW + MID_GAP + iconSize;
+}
+
+function placeTallStrip() {
+  const iconSize = champIconSize();
+  const rows = [];
+  for (const row of document.querySelectorAll(ROW_SEL)) {
+    const rowRect = row.getBoundingClientRect();
+    if (rowRect.width < 1 || rowRect.height < 1) continue;
+    const content = row.querySelector(CONTENT_SEL);
+    const key = content?.querySelector(KEY_SEL);
+    const pike = content?.querySelector(PIKE_SEL);
+    const detailsContent = content?.querySelector(DETAILS_CONTENT_SEL);
+    if (!content || !key || !pike || !detailsContent || key.parentElement !== content) continue;
+    rows.push({ row, content, key, detailsContent });
+  }
+  const mustMeasure = rows.some(({ row }) => !midRowSizes.has(row));
+  if (mustMeasure) document.documentElement.classList.remove(TALL_STRIP);
+
+  const seen = new Set();
+  const jobs = rows.map(({ row, content, key, detailsContent }) => {
+    const sizes = captureMidRowSizes(row, content);
+    return { row, content, key, detailsContent, sizes, player: playerForRow(row) };
+  });
+
+  document.documentElement.classList.add(TALL_STRIP);
+  document.querySelectorAll('.' + MID_ROW).forEach((el) => el.remove());
+
+  for (const { row, content, key, detailsContent, sizes, player } of jobs) {
+    const levelNode = row.querySelector(LEVEL_SEL);
+    if (levelNode) {
+      rememberMidRowInline(levelNode);
+      levelNode.style.width = levelBoxWidth(getComputedStyle(levelNode)) + 'px';
+    }
+    const badgeWidth = stripBadgeWidth(levelNode, iconSize);
+    const runeSpace = tightenRuneGap(key);
+    const stripRoom = STRIP_ACTIONS_PAD * 2;
+    applyOuterWidth(content.querySelector(DETAILS_SEL), sizes.details + sizes.pike + badgeWidth + stripRoom);
+    applyOuterWidth(row.querySelector(CONTROLS_SEL), sizes.controls);
+    applyOuterWidth(content.querySelector(ACTIONS_SEL), sizes.actions);
+    applyOuterWidth(content.querySelector(ITEMS_SEL), Math.max(0, sizes.items - badgeWidth - stripRoom + runeSpace));
+    if (!player?.iconPath) continue;
+    const img = ensureChampIcon(row);
+    placeStripIcon(detailsContent, img);
+    paintChampIcon(img, iconSize, player.iconPath);
+    seen.add(img);
+  }
+  document.querySelectorAll('.blc-mid-row-icon').forEach((el) => {
     if (!seen.has(el)) el.remove();
   });
 }

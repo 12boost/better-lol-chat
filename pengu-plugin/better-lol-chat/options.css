@@ -116,7 +116,7 @@
 }
 
 .blc-options-body {
-  padding: 8px 8px 4px;
+  padding: 8px;
   scrollbar-width: thin;
   scrollbar-color: var(--blc-scroll) transparent;
 }

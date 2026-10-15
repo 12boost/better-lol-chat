@@ -7,7 +7,7 @@ Unofficial Pengu Loader plugin that improves League of Legends **post-game chat*
 - Larger chat window
 - Champion icons in chat
 - Display champion names alongside or instead of summoner names
-- Display champion icon and level next to runes so chat doesn't cover scoreboard info
+- Compact champion icon and level
 - Color messages by team (fixes a client bug that marks all players as enemy team)
 - Customizable chat colors
 - Show champion names in honor tooltips
