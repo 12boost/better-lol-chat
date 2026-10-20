@@ -1,7 +1,7 @@
 # Better LOL Chat - Buff your post-game flame!
 Unofficial Pengu Loader plugin that improves League of Legends **post-game chat**. Not endorsed by Riot Games.
 
-![image](https://github.com/user-attachments/assets/3a2a10de-b995-4690-8a5e-53c0a0313ab3)
+![image](https://github.com/user-attachments/assets/09b0e05e-ba3a-4d89-b7c7-30ef91405036)
 
 ## Features
 - Larger chat window
