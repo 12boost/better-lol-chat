@@ -23,7 +23,7 @@ def main() -> None:
     if not tag or "/" in tag or "\\" in tag or ".." in tag:
         raise SystemExit(f"refusing tag {tag!r}")
     url = (
-        "https://github.com/rdavis0/better-lol-chat/releases/download/"
+        "https://github.com/12boost/better-lol-chat/releases/download/"
         f"{tag}/better-lol-chat.zip"
     )
     script = TEMPLATE.read_text(encoding="utf-8").replace("__ZIP_URL__", url)
