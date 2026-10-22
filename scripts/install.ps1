@@ -99,7 +99,7 @@ if ($env:BLC_SELF_TEST -eq '1') {
   exit 0
 }
 
-if ($ZipUrl -notmatch '^https://github\.com/rdavis0/better-lol-chat/releases/download/[^/]+/better-lol-chat\.zip$') {
+if ($ZipUrl -notmatch '^https://github\.com/12boost/better-lol-chat/releases/download/[^/]+/better-lol-chat\.zip$') {
   Write-Host 'This installer is missing its download address.'
   Wait-Close 1
 }

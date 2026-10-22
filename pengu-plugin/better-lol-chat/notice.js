@@ -1,7 +1,7 @@
 import { settings, saveSettings } from './settings.js';
 
 const NOTICE_URL =
-  'https://gist.githubusercontent.com/rdavis0/9497829e2a22303e26fcad09950bcd93/raw/notice.json';
+  'https://gist.githubusercontent.com/12boost/9497829e2a22303e26fcad09950bcd93/raw/notice.json';
 const SAFE_ID = /^[\w.-]{1,64}$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const MAX_MESSAGE = 120;

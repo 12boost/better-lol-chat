@@ -1,8 +1,8 @@
 import { settings, saveSettings } from './settings.js';
 import { showUpdateDialog } from './update-dialog.js';
 
-const REPO_URL = 'https://github.com/rdavis0/better-lol-chat';
-const RELEASES_URL = 'https://api.github.com/repos/rdavis0/better-lol-chat/releases/latest';
+const REPO_URL = 'https://github.com/12boost/better-lol-chat';
+const RELEASES_URL = 'https://api.github.com/repos/12boost/better-lol-chat/releases/latest';
 const SAFE_TAG = /^[\w.+-]+$/;
 const DOWNLOAD_PREFIX = `${REPO_URL}/releases/download/`;
 const INSTALLER_NAME = /^blc-install-\d+(?:\.\d+){0,3}\.bat$/i;

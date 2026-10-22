@@ -27,7 +27,7 @@ const PAINT_PROPS = [
 ];
 
 const chromeToken = String(Math.random());
-const ISSUES_URL = 'https://github.com/rdavis0/better-lol-chat/issues';
+const ISSUES_URL = 'https://github.com/12boost/better-lol-chat/issues';
 const BUG_TIP_TEXT = 'Report a Bug';
 const BUG_TIP_DELAY = 450;
 
