@@ -13,6 +13,7 @@ import {
 import { refreshIdentities, clearRoster, players, seedRoster } from './roster.js';
 import { rewriteMessages, matchAlias, stripBidi } from './messages.js';
 import { installSampleCommands } from './commands.js';
+import { installScrollHold, syncScrollHold } from './scroll.js';
 import { beginPostGameUpdateCheck, mountUpdateNotice } from './update.js';
 import { beginPostGameNoticeCheck, mountNotice, clearNoticeMount } from './notice.js';
 import { closeUpdateDialog, updateDialogIsOpen } from './update-dialog.js';
@@ -57,6 +58,8 @@ initOptions({
   getRoom: () => chatRoom || findPostGameRoom(),
   getFrameDocument,
   onCommit() {
+    const room = chatRoom || findPostGameRoom();
+    if (room) syncScrollHold(getFrameDocument(room));
     scheduleEnhance();
     ensureOpen();
   },
@@ -112,8 +115,6 @@ export function load() {
   document.addEventListener('pointerdown', onOptionsHold, true);
   document.addEventListener('pointerup', onOptionsHold, true);
   document.addEventListener('pointerdown', onHostPointerDown, true);
-  document.addEventListener('pointerdown', onToggleIntercept, true);
-  document.addEventListener('click', onToggleIntercept, true);
   document.addEventListener('pointerdown', onInputOpen, true);
   document.addEventListener('focusin', onInputOpen, true);
   document.addEventListener('pointerdown', onOutsidePointerDown, true);
@@ -321,6 +322,13 @@ function watchFocusClass(room) {
   const targets = box && box !== room ? [room, box] : [room];
   focusClassObserver = new MutationObserver((mutations) => {
     if (!inPostGame || !onScoreboard || focusWrite) return;
+    const gained = mutations.some(
+      (m) => m.target === room && !classHadFocused(m.oldValue) && room.classList.contains(FOCUSED_CLASS),
+    );
+    if (gained && windowCollapsed) {
+      expandWindow(room);
+      return;
+    }
     const stripped = mutations.some(
       (m) => m.target === room && classHadFocused(m.oldValue) && !room.classList.contains(FOCUSED_CLASS),
     );
@@ -336,7 +344,9 @@ function watchFocusClass(room) {
     }
     if (windowCollapsed) {
       if (isChatOpen(room)) withFrozenScroll(() => clearFocusedClass(room));
+      return;
     }
+    withFrozenScroll(() => forceFocusedClass(room));
   });
   for (const el of targets) {
     focusClassObserver.observe(el, {
@@ -391,10 +401,15 @@ function ensureOpen() {
       if (isChatOpen(room) || optionsAreOpen()) paintOpenChrome(room);
       else releaseVanillaChat(room);
     } else if (windowCollapsed) {
-      clearStretch(room);
-      room.classList.add(COLLAPSED_CLASS);
-      updateCollapsePlaceholder(room, true);
-      withFrozenScroll(() => clearFocusedClass(room));
+      if (isChatOpen(room)) {
+        expandWindow(room);
+        paintOpenChrome(room);
+      } else {
+        clearStretch(room);
+        room.classList.add(COLLAPSED_CLASS);
+        updateCollapsePlaceholder(room, true);
+        withFrozenScroll(() => clearFocusedClass(room));
+      }
     } else if (!optionsAreOpen() && !settings.autoOpen && !isChatOpen(room)) {
       clearStretch(room);
     } else {
@@ -979,31 +994,6 @@ function expandWindow(room = findPostGameRoom()) {
   syncCredit(room);
 }
 
-function toggleFullWindow(room = findPostGameRoom()) {
-  if (!room) return;
-  if (windowCollapsed || !isChatOpen(room) || room.classList.contains(COLLAPSED_CLASS)) {
-    expandWindow(room);
-  } else {
-    collapseWindow(room);
-  }
-}
-
-function onToggleIntercept(event) {
-  if (!inPostGame || !settings.stickyChat) return;
-  const room = findPostGameRoom();
-  if (!room) return;
-  const toggle = event.target?.closest?.(TOGGLE_SEL);
-  if (!toggle || !room.contains(toggle)) return;
-
-  event.preventDefault();
-  event.stopPropagation();
-  event.stopImmediatePropagation();
-
-  if (event.type === 'pointerdown' && event.button === 0) {
-    toggleFullWindow(room);
-  }
-}
-
 function onInputOpen(event) {
   if (!inPostGame || !windowCollapsed) return;
   if (event.type === 'pointerdown' && event.button !== 0) return;
@@ -1032,7 +1022,6 @@ function onOutsidePointerDown(event) {
   if (!inPostGame || !settings.stickyChat || !onScoreboard || windowCollapsed) return;
   const room = findPostGameRoom();
   if (!room || (!settings.autoOpen && !isChatOpen(room))) return;
-  if (event.target?.closest?.(TOGGLE_SEL)) return;
   if (room.contains(event.target)) return;
   withFrozenScroll(() => forceFocusedClass(room));
 }
@@ -1041,7 +1030,6 @@ function onOutsidePointerUp(event) {
   if (!inPostGame || !settings.stickyChat || !onScoreboard || windowCollapsed) return;
   const room = findPostGameRoom();
   if (!room || (!settings.autoOpen && !isChatOpen(room))) return;
-  if (event.target?.closest?.(TOGGLE_SEL)) return;
 
   if (!room.contains(event.target)) burstRestoreFocus(room);
 }
@@ -1145,6 +1133,7 @@ function enhance() {
       hookFrameOptions(doc);
       syncOptionsScrollbar(doc);
       rewriteMessages(doc);
+      installScrollHold(doc);
       mountUpdateNotice(doc);
       mountNotice(doc);
     }
@@ -1219,6 +1208,7 @@ function hookMessageFrame(room) {
     const doc = getFrameDocument(room);
     if (!doc) return;
     armFrameEscape(doc);
+    installScrollHold(doc);
     if (frameObservers.has(doc)) return;
     const mo = new MutationObserver(() => {
       if (!inPostGame || applying) return;

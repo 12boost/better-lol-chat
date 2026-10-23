@@ -18,7 +18,7 @@ const COLOR_VARS = {
   messageMine: '--blc-message-mine',
 };
 
-const TOGGLE_KEYS = ['tallerChat', 'showMidRow', 'strongDim', 'autoOpen', 'stickyChat', 'showChatIcons'];
+const TOGGLE_KEYS = ['tallerChat', 'showMidRow', 'strongDim', 'autoOpen', 'stickyChat', 'pauseScroll', 'showChatIcons'];
 
 export function normalizeHex(value, allowShort) {
   const match = String(value || '').trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
@@ -75,6 +75,7 @@ function loadSettings() {
     strongDim: true,
     autoOpen: true,
     stickyChat: true,
+    pauseScroll: true,
     skippedUpdate: '',
     notice: emptyNoticeState(),
     colors: { ...COLOR_DEFAULTS },

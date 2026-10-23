@@ -29,9 +29,9 @@ lol-social-chat-room[type="postGame"].scoreboard-v2
 ```
 
 - Open means `focused-chat-box` on `lol-social-chat-room`. Blur removes that class from the room. `.chat-box` can keep `focused-chat-box` after that. The unfocused peek is a few recent lines, older lines clipped, background fading upward.
-- Sticky chat (on by default) keeps that room class on while the Scoreboard tab is showing, so click-outside and blur do not collapse chat. The plugin rewrites the class only, and freezes `scrollTop` / `scrollLeft` around those writes. The X on the credit line, the chat button, and Esc remove the class (vanilla peek). The X also closes the options panel when that panel is open. Esc closes the options panel first, and collapses chat only when the panel is already closed.
+- Sticky chat (on by default) keeps that room class on while the Scoreboard tab is showing, so click-outside and blur do not collapse chat. The plugin rewrites the class only, and freezes `scrollTop` / `scrollLeft` around those writes. The X on the credit line and Esc remove the class (vanilla peek). The X also closes the options panel when that panel is open. Esc closes the options panel first, and collapses chat only when the panel is already closed. If the client removes the class while the window is not collapsed, including from `.chat-toggle-button`, the plugin puts the class back.
 - Sticky chat off leaves the room class to the client. When the class leaves, large-chat stretch is removed and the credit banner hides, so the window returns to the client's height. `#blc-options` counts as part of chat while it is open: clicks inside the panel do not collapse chat, including the click that turns sticky on. A click outside the panel and outside the chat room closes the panel and collapses chat. Once that panel has been open, the next click outside chat collapses it too, so closing the panel does not leave the room class stuck on.
-- `.chat-toggle-button` is intercepted only while sticky chat is on. Toggle-off removes `focused-chat-box` (vanilla peek). Toggle-on puts it back. Clicking the text field while collapsed also opens chat. The native input is kept. With sticky chat off, the button is the client’s control.
+- `.chat-toggle-button` is the client’s control. The plugin does not intercept it. Clicking the text field while collapsed opens chat, and Enter does too. The native input is kept. If the client opens the room while the plugin had collapsed it, the collapsed flag is cleared.
 - `can-hide-player-messages` is stripped so messages start visible. The room gets `blc-messages-unlocked`.
 - Our collapsed flag is `blc-collapsed` on the room plus module state `windowCollapsed`.
 
@@ -43,7 +43,7 @@ Post-game phases are `WaitingForStats`, `PreEndOfGame`, and `EndOfGame`.
 
 Chat is forced open only when a `.scoreboard-team-container` is actually on screen (Scoreboard tab) and Automatically open chat is on. On Progression that element is not showing, so the plugin leaves vanilla collapse alone. Switching back to Progression clears `focused-chat-box` once, then stops managing it.
 
-Sticky chat is separate from that open. On, scoreboard chat stays open until the chat button or Esc. Off, loss of focus closes it the way the client does, including after an automatic open. An open options panel is not loss of focus.
+Sticky chat is separate from that open. On, scoreboard chat stays open until the X or Esc. Off, loss of focus closes it the way the client does, including after an automatic open. An open options panel is not loss of focus.
 
 While open on the scoreboard, the room is stretched with `blc-stretched`. The stretch paints the room and `.chat-box` solid `#010a13`. Vanilla leaves the focused room at `rgba(1, 10, 19, 0.95)` and fades `.chat-box` from transparent to `#010a13`; that fade would stretch with the window. The room's top lines up with the top of `.scoreboard-header-component.is-player-team`. Width and bottom stay where vanilla put them. Each visible `.scoreboard-header-component` gets a leading flex child, `.blc-header-chat-gutter`, whose right edge lines up with the chat window. `.scoreboard-header-team-name` then has a 5px left margin. Each `.scoreboard-row-actions-button-container` (and the strawberry and jade equivalents) gets a 4px left margin while the room is stretched and the tall strip is off, so the actions button clears the chat. While shifted, `.scoreboard-header-content` drops Riot's fixed 500px width (inline, so it wins) and shrinks to its text. The header's own spacer absorbs that width, so `.scoreboard-column-icons-container` stays put. The credit line sits above the iframe. The iframe fills the height between that line and the input. Numbers are measured, not hardcoded, and recomputed on resize.
 
@@ -108,7 +108,11 @@ Inject sample rows into `iframe.contentDocument.querySelector('.messages')`. An 
 
 The plugin registers `window.__blcInjectSampleMessages()` on load. From the League client console, with the post-game scoreboard open, that call reads scoreboard names, seeds the roster, and appends the sample. `window.__blcClearSampleMessages()` removes those rows. `util/inject-sample-messages.js` is the same call.
 
-Typing `/sample` or `/demo` in the post-game `textarea.chat-input` and pressing Enter runs that same call. The line is not sent. The field is cleared. Shift, Alt, Ctrl, or Meta with Enter still go to the client.
+Typing `/sample` or `/demo` in the post-game `textarea.chat-input` and pressing Enter runs that same call. The line is not sent. The field is cleared. Shift, Alt, Ctrl, or Meta with Enter still go to the client. Both commands jump to the latest line afterward.
+
+### Scroll hold
+
+Pause scroll while reading is on by default (`pauseScroll`). The frame scrolls on `document.scrollingElement`. In the captured iframe, `body` is `overflow: auto; height: 100%` and `.messages` is `overflow: hidden`, so the scrollbar belongs to the frame. While that scroller is already at the bottom, a new row stays in view. After a wheel, touch, scrollbar drag, or Page Up / Page Down / arrow / Home / End move leaves the bottom, a later programmatic jump is put back on the line that was in view. Returning to the bottom follows again. Turning the option off leaves the client's always-follow behavior.
 
 ### Chat line
 

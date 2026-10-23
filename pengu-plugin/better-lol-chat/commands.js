@@ -9,6 +9,7 @@
 
 import { previewUpdateDialog } from './update.js';
 import { previewNotice } from './notice.js';
+import { followLatest } from './scroll.js';
 
 const SAMPLE = 'blc-sample';
 const CELEBRATION =
@@ -128,8 +129,7 @@ export async function injectSampleMessages() {
   parent.appendChild(celebration);
   inserted.push(celebration);
 
-  const scroller = scrollParent(parent);
-  if (scroller) scroller.scrollTop = scroller.scrollHeight;
+  followLatest(doc);
 
   const counts = inserted.reduce((acc, row) => {
     const team = row.classList.contains('mine')
@@ -287,19 +287,6 @@ function makeSystem(root, teamClass, text, spanClass) {
   sys.appendChild(span);
   box.appendChild(sys);
   return box;
-}
-
-function scrollParent(el) {
-  let node = el;
-  const view = el.ownerDocument?.defaultView;
-  while (node && node !== el.ownerDocument.documentElement) {
-    const style = view?.getComputedStyle(node);
-    if (style && /(auto|scroll)/.test(style.overflowY) && node.scrollHeight > node.clientHeight) {
-      return node;
-    }
-    node = node.parentElement;
-  }
-  return el.ownerDocument.scrollingElement || el.ownerDocument.body;
 }
 
 const CHAT_COMMANDS = new Map([

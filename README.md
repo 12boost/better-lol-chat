@@ -12,6 +12,7 @@ Unofficial Pengu Loader plugin that improves League of Legends **post-game chat*
 - Customizable chat colors
 - Automatically open chat
 - Sticky chat window
+- Pause auto-scroll while you read older messages
 - Hide `player joined the lobby` messages
 - More pronounced darkened overlay for players who left chat
 - Show champion names in honor tooltips
