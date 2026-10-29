@@ -1,0 +1,204 @@
+.blc-dialog {
+  --blc-notes: rgb(1 10 19 / 60%);
+  position: fixed;
+  inset: 0;
+  /* Above #blc-options (10) and .blc-bug-tip (11) so it works when opened from the panel. */
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--blc-scrim);
+}
+
+.blc-dialog [hidden],
+.blc-dialog[hidden] {
+  display: none !important;
+}
+
+.blc-dialog .dialog-frame {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 440px;
+  max-width: calc(100vw - 24px);
+  transform: translate(-50%, -50%);
+}
+
+/* dialog-small is 296px. Stretch that column to the frame. */
+.blc-dialog .blc-dialog-block {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 18px 18px 8px;
+  text-align: center;
+}
+
+.blc-dialog-sub {
+  margin: 0 0 8px;
+  text-align: center;
+}
+
+.blc-dialog-notes-frame {
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  min-height: 80px;
+  max-height: 180px;
+  border: 1px solid var(--blc-line);
+  background: var(--blc-notes);
+  overflow: hidden;
+}
+
+/* height: 100% does not resolve against max-height, so the scroller grew with the text and the frame clipped it. */
+.blc-dialog .blc-dialog-notes {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  display: block;
+  box-sizing: border-box;
+  border: 0;
+  background: transparent;
+  overflow: auto;
+}
+
+.blc-dialog-notes-text {
+  padding: 8px 12px;
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: normal;
+  line-height: 16px;
+  letter-spacing: 0.025em;
+  -webkit-font-smoothing: subpixel-antialiased;
+  color: var(--blc-muted);
+}
+
+.blc-dialog-notes-heading {
+  margin: 0 0 4px;
+  text-align: center;
+}
+
+.blc-dialog-notes-body {
+  text-align: left;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.blc-dialog-actions {
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.blc-dialog-actions.is-leaving {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+.blc-dialog-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  margin: 12px 0 0;
+  padding: 0 16px;
+}
+
+.blc-dialog-buttons lol-uikit-flat-button {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+.blc-dialog-link {
+  appearance: none;
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--blc-muted);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.blc-dialog-link:hover,
+.blc-dialog-link:focus-visible {
+  color: var(--blc-lit);
+}
+
+.blc-dialog-link:active {
+  color: var(--blc-pressed);
+}
+
+.blc-dialog-skip {
+  display: block;
+  margin: 10px auto 14px;
+  text-align: center;
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.025em;
+}
+
+.blc-dialog-install {
+  box-sizing: border-box;
+  margin: 8px 0 12px;
+  text-align: center;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: normal;
+  line-height: 16px;
+  letter-spacing: 0.025em;
+  -webkit-font-smoothing: subpixel-antialiased;
+  color: var(--blc-muted);
+  animation: blc-install-in 220ms ease;
+}
+
+.blc-dialog-install p {
+  margin: 0;
+}
+
+.blc-dialog-started {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+/* Checked frame from the client checkbox sprite, inlined. The plugin stylesheet does not load /fe/ image paths. */
+.blc-dialog-check {
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  background: url("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAA4AAAAOCAYAAAAfSC3RAAABY0lEQVR4nGNk5BJWY2BgkGIgDjxjYGB4wMDA8IsFpKk8QHQ/MbpefPizcOGB9w2npuo/AGkEg84Nr7dBmf+hGBvgODPf3vXftw/L4Rqhip9h0fgfSjO2Zmga//3yNvzfv7+/mdAUgPA/KP7LwMDwB4bbMrQMnTQZTJ6/+9FrmX99GbKNDEia/kEx2LCOTC0Le43/ZuuPvj//8tVPYQYGBgUUGwV52VhyQxTVobb9BdnUkaVlZq/x32LLyQ+Hu1a9uCMhwJIAClBkjQzhjiJKCe4izs1JCmYgjZ3Z2hb26v+ttpz4cLB12fMTUFeAAYpTZ2x6dl2Y+z+Hj4WAlWaDpoy04D/ZzSc+7G9b/vwkKHCQAw09VP+3Ln9+6t9/hj9+lgJ2G49/2NexAqwJA6AHDhi0r3h++ujVL/cPXf78HJs8ukaQU2RgAXPo8meQf+SR4xGrxvIAUV9cpmMDjCQmchh4BgA0XpB4qwwRqgAAAABJRU5ErkJggg==") center / 14px 14px no-repeat;
+}
+
+.blc-dialog-install p + p {
+  margin-top: 10px;
+}
+
+.blc-dialog-install .blc-dialog-fallback {
+  margin-top: 16px;
+  font-size: 10px;
+  color: var(--blc-muted);
+}
+
+@keyframes blc-install-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .blc-dialog-actions,
+  .blc-dialog-install {
+    transition: none;
+    animation: none;
+  }
+}

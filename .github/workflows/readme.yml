@@ -1,0 +1,26 @@
+name: README installer link
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  installer-link:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: README install link matches VERSION
+        run: |
+          version="$(awk -F"'" '/^const VERSION = / { print $2; exit }' pengu-plugin/better-lol-chat/index.js | tr -d '\r')"
+          if ! [[ "$version" =~ ^[0-9]+(\.[0-9]+){0,3}$ ]]; then
+            echo "VERSION is not a plain number: ${version}"
+            exit 1
+          fi
+          file="blc-install-${version}.bat"
+          url="releases/download/v${version}/${file}"
+          if ! grep -Fq "$file" README.md || ! grep -Fq "$url" README.md; then
+            echo "README install link must contain ${file} and ${url}"
+            exit 1
+          fi

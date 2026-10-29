@@ -99,13 +99,13 @@ if ($env:BLC_SELF_TEST -eq '1') {
   exit 0
 }
 
-if ($ZipUrl -notmatch '^https://github\.com/rdavis0/better-lol-chat/releases/download/[^/]+/better-lol-chat\.zip$') {
+if ($ZipUrl -notmatch '^https://github\.com/12boost/better-lol-chat/releases/download/[^/]+/better-lol-chat\.zip$') {
   Write-Host 'This installer is missing its download address.'
   Wait-Close 1
 }
 
 if (-not $env:BLC_BAT) {
-  Write-Host 'Run install.bat to install better-lol-chat.'
+  Write-Host 'Run this file to install better-lol-chat.'
   Wait-Close 1
 }
 
@@ -157,7 +157,7 @@ try {
   robocopy $source $dest /MIR /R:2 /W:1 /NFL /NDL /NJH /NJS /NP
   $copyCode = $LASTEXITCODE
   if ($copyCode -ge 8) {
-    Write-Host "Copy failed. Close League and run install.bat again."
+    Write-Host "Copy failed. Close League and run this file again."
     Wait-Close 1
   }
 } finally {

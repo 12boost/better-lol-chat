@@ -27,7 +27,7 @@ const PAINT_PROPS = [
 ];
 
 const chromeToken = String(Math.random());
-const ISSUES_URL = 'https://github.com/rdavis0/better-lol-chat/issues';
+const ISSUES_URL = 'https://github.com/12boost/better-lol-chat/issues';
 const BUG_TIP_TEXT = 'Report a Bug';
 const BUG_TIP_DELAY = 450;
 
@@ -130,12 +130,12 @@ export function closeOptions() {
   if (!panel || panel.hidden) return;
   panel.hidden = true;
   hideBugTip();
-  frameDocument()?.getElementById('blc-options-cog')?.setAttribute('aria-expanded', 'false');
+  document.getElementById('blc-options-cog')?.setAttribute('aria-expanded', 'false');
 }
 
 function toggleOptions() {
   const panel = document.getElementById('blc-options');
-  const cog = frameDocument()?.getElementById('blc-options-cog');
+  const cog = document.getElementById('blc-options-cog');
   if (!panel) return;
   const willOpen = panel.hidden;
   panel.hidden = !willOpen;
@@ -254,14 +254,14 @@ function bindColorRow(row, resetPaint) {
   reset.addEventListener('click', () => applyHex(COLOR_DEFAULTS[key], true));
 }
 
-function buildCreditChrome(doc, el) {
+function buildCreditChrome(el) {
   el.replaceChildren();
 
-  const label = doc.createElement('span');
+  const label = document.createElement('span');
   label.className = 'blc-credit-label';
   label.textContent = deps.creditText;
 
-  const cog = doc.createElement('button');
+  const cog = document.createElement('button');
   cog.type = 'button';
   cog.id = 'blc-options-cog';
   cog.className = 'blc-options-cog';
@@ -277,7 +277,7 @@ function buildCreditChrome(doc, el) {
     toggleOptions();
   });
 
-  const close = doc.createElement('button');
+  const close = document.createElement('button');
   close.type = 'button';
   close.className = 'blc-chat-close';
   close.setAttribute('aria-label', 'Close chat');
@@ -291,13 +291,12 @@ function buildCreditChrome(doc, el) {
     deps.collapseChat();
   });
 
-  const tools = doc.createElement('div');
+  const tools = document.createElement('div');
   tools.className = 'blc-credit-tools';
   tools.append(cog, close);
   el.append(label, tools);
   paintCog(cog);
   paintClose(close);
-  hookOptionsDismiss(doc);
   ensureOptionsPanel();
 }
 
@@ -321,7 +320,6 @@ function ensureBugTip() {
   tip.setAttribute('role', 'tooltip');
   const block = document.createElement('lol-uikit-content-block');
   block.setAttribute('type', 'tooltip-system');
-  block.style.whiteSpace = 'nowrap';
   const text = document.createElement('p');
   text.textContent = BUG_TIP_TEXT;
   block.appendChild(text);
@@ -496,12 +494,17 @@ export function optionsAreOpen() {
   return !!panel && !panel.hidden;
 }
 
-export function attachCreditChrome(doc, el) {
+export function attachCreditChrome(el) {
   if (el.dataset.blcChrome !== chromeToken) {
-    buildCreditChrome(doc, el);
+    buildCreditChrome(el);
     el.dataset.blcChrome = chromeToken;
   } else {
     paintCog(el.querySelector('.blc-options-cog'));
     paintClose(el.querySelector('.blc-chat-close'));
   }
+}
+
+export function hookFrameOptions(doc) {
+  if (!doc) return;
+  hookOptionsDismiss(doc);
 }

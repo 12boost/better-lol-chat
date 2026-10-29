@@ -5,6 +5,7 @@ const bySummonerId = new Map();
 let nameIndex = [];
 let roster = [];
 let seedEntries = [];
+let conversationId = null;
 
 export function players() {
   return roster;
@@ -20,6 +21,7 @@ export function clearRoster() {
   nameIndex = [];
   roster = [];
   seedEntries = [];
+  conversationId = null;
 }
 
 // Dev hook for util/inject-sample-messages.js. Scoreboard players stay mapped
@@ -133,11 +135,11 @@ export async function refreshIdentities() {
   }
 
   const postGame = (conversations || []).find((c) => c?.type === 'postGame');
-  const postGameConversationId = postGame?.id || postGame?.pid || null;
+  conversationId = postGame?.id || postGame?.pid || null;
 
-  if (postGameConversationId) {
+  if (conversationId) {
     const messages = await lcu(
-      `/lol-chat/v1/conversations/${encodeURIComponent(postGameConversationId)}/messages`,
+      `/lol-chat/v1/conversations/${encodeURIComponent(conversationId)}/messages`,
     );
     applyJoinRoomMapping(messages || []);
   }
@@ -145,7 +147,6 @@ export async function refreshIdentities() {
   nextAliases.sort((a, b) => b.name.length - a.name.length);
   nameIndex = nextAliases;
   applySeeds();
-  console.log(LOG, 'mapped', list.length, 'players', { conversation: postGameConversationId });
 }
 
 function collectPlayers(eog, me, champNames, champIcons) {

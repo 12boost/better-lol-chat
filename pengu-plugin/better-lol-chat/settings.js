@@ -18,7 +18,7 @@ const COLOR_VARS = {
   messageMine: '--blc-message-mine',
 };
 
-const TOGGLE_KEYS = ['tallerChat', 'showMidRow', 'strongDim', 'autoOpen', 'stickyChat', 'showChatIcons'];
+const TOGGLE_KEYS = ['tallerChat', 'showMidRow', 'strongDim', 'autoOpen', 'stickyChat', 'pauseScroll', 'showChatIcons'];
 
 export function normalizeHex(value, allowShort) {
   const match = String(value || '').trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
@@ -37,6 +37,34 @@ function nameStyleFrom(showSummoner, showChampion) {
   return 'champion';
 }
 
+function emptyNoticeState() {
+  return {
+    gamesSince: 0,
+    priorityActive: false,
+    shown: {},
+  };
+}
+
+function mergeNoticeState(saved) {
+  const next = emptyNoticeState();
+  if (Number.isFinite(Number(saved.gamesSince))) {
+    next.gamesSince = Math.max(0, Math.floor(Number(saved.gamesSince)));
+  }
+  if (typeof saved.priorityActive === 'boolean') next.priorityActive = saved.priorityActive;
+  if (saved.shown && typeof saved.shown === 'object') {
+    for (const [id, entry] of Object.entries(saved.shown)) {
+      if (!/^[\w.-]{1,64}$/.test(id) || !entry || typeof entry !== 'object') continue;
+      const gamesSince = Number(entry.gamesSince);
+      const message = Number(entry.message);
+      next.shown[id] = {
+        gamesSince: Number.isFinite(gamesSince) ? Math.max(0, Math.floor(gamesSince)) : 0,
+        message: Number.isFinite(message) ? Math.max(0, Math.floor(message)) : 0,
+      };
+    }
+  }
+  return next;
+}
+
 function loadSettings() {
   const next = {
     tallerChat: true,
@@ -47,11 +75,18 @@ function loadSettings() {
     strongDim: true,
     autoOpen: true,
     stickyChat: true,
+    pauseScroll: true,
+    skippedUpdate: '',
+    notice: emptyNoticeState(),
     colors: { ...COLOR_DEFAULTS },
   };
   try {
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || 'null');
     if (!saved || typeof saved !== 'object') return next;
+    if (typeof saved.skippedUpdate === 'string') next.skippedUpdate = saved.skippedUpdate;
+    if (saved.notice && typeof saved.notice === 'object') {
+      next.notice = mergeNoticeState(saved.notice);
+    }
     for (const key of TOGGLE_KEYS) {
       if (typeof saved[key] === 'boolean') next[key] = saved[key];
     }

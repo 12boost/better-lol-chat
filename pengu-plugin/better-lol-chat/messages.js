@@ -1,12 +1,8 @@
 import { settings, showsSummoner, showsChampion } from './settings.js';
 import { aliases, players } from './roster.js';
 
-const JOIN_TEXT = /joined(\s+the)?\s+(room|lobby)/i;
-const LEAVE_TEXT = /^(.*?)\s+(left(?:\s+the)?\s+(?:room|lobby))\s*$/i;
-const JOIN_LINE = /^(.*?)\s+joined(?:\s+the)?\s+(?:room|lobby)\s*$/i;
-
-export function isJoinNotice(text) {
-  return JOIN_TEXT.test(String(text || ''));
+function normalizeLobbyText(text) {
+  return stripBidi(text).replace(/\s+/g, ' ').trim();
 }
 
 export function stripBidi(s) {
@@ -25,7 +21,7 @@ function riotIdParts(value) {
 
 export function matchAlias(text) {
   const trimmed = stripBidi(text).trim();
-  if (!trimmed || JOIN_TEXT.test(trimmed)) return null;
+  if (!trimmed) return null;
   const lower = trimmed.toLowerCase();
   for (const entry of aliases()) {
     if (entry.name.toLowerCase() === lower) return entry;
@@ -39,6 +35,90 @@ export function matchAlias(text) {
     return entry;
   }
   return null;
+}
+
+function gameNameKey(alias) {
+  const hash = alias.indexOf('#');
+  return (hash === -1 ? alias : alias.slice(0, hash)).trim().toLowerCase();
+}
+
+function aliasForms(alias) {
+  const trimmed = String(alias || '').trim();
+  if (!trimmed) return [];
+  const forms = [trimmed];
+  const hash = trimmed.indexOf('#');
+  if (hash <= 0) return forms;
+  const name = trimmed.slice(0, hash).trim();
+  const tag = trimmed.slice(hash + 1).trim();
+  if (!name || !tag) return forms;
+  const spaced = `${name} #${tag}`;
+  if (spaced.toLowerCase() !== trimmed.toLowerCase()) forms.push(spaced);
+  return forms;
+}
+
+function sharedGameNames() {
+  const counts = new Map();
+  for (const player of players()) {
+    const seen = new Set();
+    for (const alias of player.aliases || []) {
+      const key = gameNameKey(alias);
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      counts.set(key, (counts.get(key) || 0) + 1);
+    }
+  }
+  const shared = new Set();
+  for (const [key, count] of counts) {
+    if (count > 1) shared.add(key);
+  }
+  return shared;
+}
+
+function isNameChar(ch) {
+  return !!ch && /[\p{L}\p{N}]/u.test(ch);
+}
+
+function foldedIndex(hay, needle) {
+  const h = hay.toLowerCase();
+  const n = needle.toLowerCase();
+  if (!n || h.length !== hay.length || n.length !== needle.length) return -1;
+  let from = 0;
+  while (from <= h.length - n.length) {
+    const at = h.indexOf(n, from);
+    if (at < 0) return -1;
+    const before = at > 0 ? h[at - 1] : '';
+    const after = at + n.length < h.length ? h[at + n.length] : '';
+    if (!isNameChar(before) && !isNameChar(after)) return at;
+    from = at + 1;
+  }
+  return -1;
+}
+
+// Longest Riot ID inside a system sentence. The rendered form has a space
+// before #. A bare game name is skipped when two players share it.
+function findPlayerMention(text) {
+  const normalized = normalizeLobbyText(text);
+  if (!normalized) return null;
+  const shared = sharedGameNames();
+  let best = null;
+  for (const player of players()) {
+    for (const alias of player.aliases || []) {
+      for (const form of aliasForms(alias)) {
+        if (!form.includes('#') && shared.has(gameNameKey(form))) continue;
+        const start = foldedIndex(normalized, form);
+        if (start < 0) continue;
+        if (best && form.length <= best.form.length) continue;
+        best = {
+          player,
+          start,
+          end: start + form.length,
+          form: normalized.slice(start, start + form.length),
+          normalized,
+        };
+      }
+    }
+  }
+  return best;
 }
 
 function summonerLabel(originalText) {
@@ -133,7 +213,7 @@ function paintChatName(el, original, player) {
 function rewriteNames(root) {
   const nameNodes = root.querySelectorAll?.('.message-box .message-name') || [];
   for (const el of nameNodes) {
-    if (el.closest?.('.blc-update-note')) continue;
+    if (el.closest?.('.blc-injected')) continue;
     if (el.closest?.('.system-message')) continue;
     let original = el.dataset.blcOriginal;
     let player = null;
@@ -152,23 +232,13 @@ function rewriteNames(root) {
   }
 }
 
-function parseLobbyLine(text) {
-  const normalized = stripBidi(text).replace(/\s+/g, ' ').trim();
-  if (!normalized) return null;
-  const leave = normalized.match(LEAVE_TEXT);
-  if (leave) return { kind: 'leave', name: leave[1].trim(), verb: leave[2] };
-  const join = normalized.match(JOIN_LINE);
-  if (join) return { kind: 'join', name: join[1].trim() };
-  return null;
-}
-
 function fixTeamClasses(root) {
   if (!players().length && !aliases().length) return;
 
   const boxes = root.querySelectorAll?.('.message-box') || [];
   for (const box of boxes) {
     if (box.classList.contains('mine')) continue;
-    if (box.classList.contains('blc-update-note')) continue;
+    if (box.classList.contains('blc-injected')) continue;
     if (box.querySelector?.('.celebration')) continue;
 
     const player = speakerForBox(box);
@@ -190,21 +260,17 @@ function speakerForBox(box) {
   }
 
   const span = box.querySelector?.('.system-message span');
-  if (!span) return null;
+  if (!span || span.classList.contains('celebration')) return null;
 
-  if (span.dataset?.blcOriginal) {
-    const stored = parseLobbyLine(span.dataset.blcOriginal);
-    if (stored) return resolvePlayer(stored.name);
-  }
+  const source = span.dataset?.blcOriginal ?? span.textContent ?? '';
+  const mention = findPlayerMention(source);
+  if (mention?.player) return mention.player;
 
   const champEl = span.querySelector?.('.blc-system-name');
   if (champEl) {
     const fromChamp = resolvePlayer(stripBidi(champEl.textContent || '').trim());
     if (fromChamp) return fromChamp;
   }
-
-  const parsed = parseLobbyLine(span.textContent || '');
-  if (parsed) return resolvePlayer(parsed.name);
   return null;
 }
 
@@ -225,48 +291,60 @@ function resolvePlayer(text) {
   return hit;
 }
 
-function paintLeaveName(span, original, player, verb, summonerName) {
-  const split = Boolean(showsChampion() && player?.championName);
-  const parts = withIcon(
-    iconPart(player),
-    nameParts(split ? summonerName : original, player, 'blc-system-name'),
-    split ? 'blc-leave-label' : '',
+function paintLeaveLine(span, player, mention) {
+  const split = Boolean(showsChampion() && player?.championName && mention && mention.end > mention.start);
+  if (!split) {
+    const whole = mention?.normalized || normalizeLobbyText(span.dataset.blcOriginal || span.textContent || '');
+    paintParts(span, withIcon(iconPart(player), nameParts(whole, player)));
+    return;
+  }
+  const name = mention.normalized.slice(mention.start, mention.end);
+  const before = mention.normalized.slice(0, mention.start);
+  const after = mention.normalized.slice(mention.end);
+  const parts = [];
+  if (before) parts.push(textPart(before));
+  parts.push(
+    ...withIcon(iconPart(player), nameParts(name, player, 'blc-system-name'), 'blc-leave-label'),
   );
-  if (split) parts.push({ text: ` ${verb}` });
+  if (after) parts.push(textPart(after));
   paintParts(span, parts);
 }
 
+// A player joins once, then may leave. The first system line with their Riot ID
+// is the join. The next is the leave. Sample rows are counted apart from live
+// rows so a demo pair does not take the live leave slot.
 function rewriteLobbyMessages(root) {
   const spans = root.querySelectorAll?.('.system-message span') || [];
+  const liveCount = new Map();
+  const sampleCount = new Map();
   for (const span of spans) {
     if (
       span.classList.contains('blc-system-name') ||
       span.classList.contains('blc-secondary-name') ||
-      span.classList.contains('blc-leave-label')
+      span.classList.contains('blc-leave-label') ||
+      span.classList.contains('celebration')
     ) {
       continue;
     }
+    if (span.closest?.('.blc-injected') || span.closest?.('.celebration')) continue;
+
     const box = span.closest('.message-box');
-    const text = stripBidi(span.textContent || '').replace(/\s+/g, ' ').trim();
-    if (JOIN_TEXT.test(text)) {
+    const source = span.dataset.blcOriginal ?? span.textContent ?? '';
+    const mention = findPlayerMention(source);
+    if (!mention?.player) continue;
+
+    const counts = box?.classList.contains('blc-sample') ? sampleCount : liveCount;
+    const n = counts.get(mention.player) || 0;
+    counts.set(mention.player, n + 1);
+    if (n === 0) {
       box?.classList.add('blc-hide-join');
       continue;
     }
+    if (n !== 1) continue;
 
-    let original = span.dataset.blcOriginal;
-    let parsed = null;
-    if (original != null) {
-      parsed = parseLobbyLine(original);
-      if (parsed?.kind !== 'leave') continue;
-    } else {
-      parsed = parseLobbyLine(text);
-      if (parsed?.kind !== 'leave') continue;
-      if (!resolvePlayer(parsed.name)) continue;
-      original = span.textContent;
-      span.dataset.blcOriginal = original;
-    }
+    if (span.dataset.blcOriginal == null) span.dataset.blcOriginal = span.textContent ?? '';
     box?.classList.remove('blc-hide-join');
-    paintLeaveName(span, original, resolvePlayer(parsed.name), parsed.verb, parsed.name);
+    paintLeaveLine(span, mention.player, mention);
   }
 }
 

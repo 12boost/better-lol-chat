@@ -7,8 +7,7 @@
   --blc-message-mine: #bfb9a5;
   --blc-leave-name: inherit;
   --blc-celebration: #a3862e;
-  --blc-credit: #ffd700;
-  --blc-credit-bg: #231281;
+  --blc-gold: #ffd700;
 }
 
 .message-box.blc-hide-join {
@@ -41,12 +40,12 @@
 
 /* Client rows are a 16px line with the name bottom-aligned. A 1.75em icon
    would sit high of the colon, so open the line to the icon and center it.
-   The update note has no icon, so it keeps the client line. */
-.blc-chat-icons .message-box:not(.blc-update-note) {
+   Injected rows have no icon, so they keep the client line. */
+.blc-chat-icons .message-box:not(.blc-injected) {
   line-height: 1.75em;
 }
 
-.blc-chat-icons .message-box:not(.blc-update-note) .message-name,
+.blc-chat-icons .message-box:not(.blc-injected) .message-name,
 .blc-chat-icons .blc-leave-label {
   align-items: center;
   vertical-align: bottom;
@@ -98,7 +97,7 @@
 }
 
 .message-box.blc-update-note .message-name {
-  color: #ffd700 !important;
+  color: var(--blc-gold) !important;
   font-weight: 700;
 }
 
@@ -107,84 +106,28 @@
   color: #f7f0dc !important;
 }
 
-.blc-credit {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  z-index: 5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 !important;
-  padding: 4px 50px 6px;
-  color: var(--blc-credit) !important;
-  font-weight: 700 !important;
-  background-image: linear-gradient(to bottom, var(--blc-credit-bg), rgb(1 10 19 / 95%));
-  width: 100% !important;
-  overflow: visible;
-  box-sizing: border-box;
+.message-box.blc-notice .message-name {
+  color: var(--blc-gold) !important;
+  font-weight: 700;
 }
 
-.blc-credit-label {
-  pointer-events: none;
+.message-box.blc-notice .message,
+.blc-tint-bodies .message-box.blc-notice .message {
+  color: #c5c0b4 !important;
 }
 
-.blc-credit-tools {
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.blc-options-cog,
-.blc-chat-close {
-  flex: none;
-  width: 18px;
-  height: 18px;
-  padding: 0;
-  border: 0;
-  background-color: transparent;
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: contain;
-  color: #a09b8c;
-  font-size: 14px;
-  line-height: 1;
+.message-box.blc-notice.blc-notice-link {
   cursor: pointer;
 }
 
-.blc-options-cog[data-blc-painted] {
-  background-color: var(--blc-cog-rest, #a09b8c);
+.message-box.blc-notice.blc-notice-link .blc-notice-body,
+.blc-tint-bodies .message-box.blc-notice.blc-notice-link .blc-notice-body {
+  color: #16cae5 !important;
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
-.blc-chat-close[data-blc-painted] {
-  background-color: var(--blc-close-rest, #a09b8c);
-}
-
-.blc-options-cog[data-blc-painted]:hover,
-.blc-chat-close[data-blc-painted]:hover {
-  background-color: #f0e6d2;
-}
-
-.blc-options-cog[data-blc-painted]:active,
-.blc-chat-close[data-blc-painted]:active {
-  background-color: #5b5a56;
-}
-
-.blc-options-cog:not([data-blc-painted]):hover,
-.blc-chat-close:not([data-blc-painted]):hover {
-  color: #f0e6d2;
-}
-
-.blc-options-cog:not([data-blc-painted]):active,
-.blc-chat-close:not([data-blc-painted]):active {
-  color: #5b5a56;
-}
-
-.blc-credit.blc-credit-hidden {
-  display: none !important;
+.message-box.blc-notice.blc-notice-link:hover .blc-notice-body,
+.blc-tint-bodies .message-box.blc-notice.blc-notice-link:hover .blc-notice-body {
+  color: #7ee5f1 !important;
 }

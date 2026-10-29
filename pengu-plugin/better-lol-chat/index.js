@@ -7,15 +7,19 @@ import {
   optionsAreOpen,
   placeOptionsPanel,
   attachCreditChrome,
+  hookFrameOptions,
   syncOptionsScrollbar,
 } from './options.js';
 import { refreshIdentities, clearRoster, players, seedRoster } from './roster.js';
-import { rewriteMessages, matchAlias, stripBidi, isJoinNotice } from './messages.js';
-import { installSampleCommands } from './sample.js';
+import { rewriteMessages, matchAlias, stripBidi } from './messages.js';
+import { installSampleCommands } from './commands.js';
+import { installScrollHold, syncScrollHold } from './scroll.js';
 import { beginPostGameUpdateCheck, mountUpdateNotice } from './update.js';
+import { beginPostGameNoticeCheck, mountNotice, clearNoticeMount } from './notice.js';
+import { closeUpdateDialog, updateDialogIsOpen } from './update-dialog.js';
 
 const LOG = '[better-lol-chat]';
-const VERSION = '0.8';
+const VERSION = '1.0';
 const CREDIT_TEXT = `better-lol-chat by wryguy`;
 const POSTGAME_PHASES = new Set([
   'WaitingForStats',
@@ -44,7 +48,6 @@ const frameObservers = new WeakMap();
 
 window.__blcSeedRoster = (entries) => {
   const added = seedRoster(entries);
-  if (added) console.log(LOG, 'seeded', added, 'scoreboard players');
   scheduleEnhance();
   return added;
 };
@@ -55,6 +58,8 @@ initOptions({
   getRoom: () => chatRoom || findPostGameRoom(),
   getFrameDocument,
   onCommit() {
+    const room = chatRoom || findPostGameRoom();
+    if (room) syncScrollHold(getFrameDocument(room));
     scheduleEnhance();
     ensureOpen();
   },
@@ -99,7 +104,7 @@ export function load() {
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ['class', 'room-changed-messages'],
+    attributeFilter: ['class'],
   });
 
   installSampleCommands({
@@ -110,8 +115,6 @@ export function load() {
   document.addEventListener('pointerdown', onOptionsHold, true);
   document.addEventListener('pointerup', onOptionsHold, true);
   document.addEventListener('pointerdown', onHostPointerDown, true);
-  document.addEventListener('pointerdown', onToggleIntercept, true);
-  document.addEventListener('click', onToggleIntercept, true);
   document.addEventListener('pointerdown', onInputOpen, true);
   document.addEventListener('focusin', onInputOpen, true);
   document.addEventListener('pointerdown', onOutsidePointerDown, true);
@@ -148,6 +151,7 @@ export function load() {
 function onPhase(phase) {
   const next = POSTGAME_PHASES.has(String(phase || ''));
   if (next === inPostGame && next) return;
+  const leavingPostGame = inPostGame && !next;
   inPostGame = next;
   if (!inPostGame) {
     windowCollapsed = false;
@@ -164,9 +168,12 @@ function onPhase(phase) {
     focusWatchBox = null;
     clearScoreboardIcons();
     closeOptions();
+    clearNoticeMount();
+    if (leavingPostGame) closeUpdateDialog();
     return;
   }
   beginPostGameUpdateCheck(VERSION);
+  beginPostGameNoticeCheck();
   windowCollapsed = false;
   refreshIdentities()
     .then(() => {
@@ -315,6 +322,13 @@ function watchFocusClass(room) {
   const targets = box && box !== room ? [room, box] : [room];
   focusClassObserver = new MutationObserver((mutations) => {
     if (!inPostGame || !onScoreboard || focusWrite) return;
+    const gained = mutations.some(
+      (m) => m.target === room && !classHadFocused(m.oldValue) && room.classList.contains(FOCUSED_CLASS),
+    );
+    if (gained && windowCollapsed) {
+      expandWindow(room);
+      return;
+    }
     const stripped = mutations.some(
       (m) => m.target === room && classHadFocused(m.oldValue) && !room.classList.contains(FOCUSED_CLASS),
     );
@@ -330,7 +344,9 @@ function watchFocusClass(room) {
     }
     if (windowCollapsed) {
       if (isChatOpen(room)) withFrozenScroll(() => clearFocusedClass(room));
+      return;
     }
+    withFrozenScroll(() => forceFocusedClass(room));
   });
   for (const el of targets) {
     focusClassObserver.observe(el, {
@@ -360,6 +376,7 @@ function ensureOpen() {
     return;
   }
   chatRoom = room;
+  insertCredit(room);
   onScoreboard = scoreboardIsShowing();
   const enteredScoreboard = onScoreboard && !wasOnScoreboard;
   if (wasOnScoreboard && !onScoreboard) {
@@ -384,10 +401,15 @@ function ensureOpen() {
       if (isChatOpen(room) || optionsAreOpen()) paintOpenChrome(room);
       else releaseVanillaChat(room);
     } else if (windowCollapsed) {
-      clearStretch(room);
-      room.classList.add(COLLAPSED_CLASS);
-      updateCollapsePlaceholder(room, true);
-      withFrozenScroll(() => clearFocusedClass(room));
+      if (isChatOpen(room)) {
+        expandWindow(room);
+        paintOpenChrome(room);
+      } else {
+        clearStretch(room);
+        room.classList.add(COLLAPSED_CLASS);
+        updateCollapsePlaceholder(room, true);
+        withFrozenScroll(() => clearFocusedClass(room));
+      }
     } else if (!optionsAreOpen() && !settings.autoOpen && !isChatOpen(room)) {
       clearStretch(room);
     } else {
@@ -454,7 +476,12 @@ const ROW_NAME_SEL =
   '.scoreboard-row-player-name, .strawberry-scoreboard-row-player-name, .jade-scoreboard-row-player-name';
 const ROW_CHAMP_SEL =
   '.scoreboard-row-champ-name, .strawberry-scoreboard-row-champ-name, .jade-scoreboard-row-champ-name';
+const DETAILS_CONTENT_SEL =
+  '.scoreboard-row-details-content, .strawberry-scoreboard-row-details-content, .jade-scoreboard-row-details-content';
 const MID_ROW = 'blc-mid-row';
+const MID_GAP = 4;
+const STRIP_ACTIONS_PAD = 8;
+const TALL_STRIP = 'blc-tall-strip';
 
 let midRowSizes = new WeakMap();
 const midRowInline = new WeakMap();
@@ -465,6 +492,7 @@ const RUNE_SEL =
   '.scoreboard-row-keystone-alignment-container, .strawberry-scoreboard-row-keystone-alignment-container, .jade-scoreboard-row-keystone-alignment-container';
 let levelSlot = 0;
 let levelSlotKey = '';
+let layoutMode = '';
 
 function playerForRow(row) {
   const name = stripBidi(row.querySelector(ROW_NAME_SEL)?.textContent || '').trim();
@@ -478,7 +506,9 @@ function playerForRow(row) {
 }
 
 function clearScoreboardIcons() {
-  document.querySelectorAll('.' + MID_ROW + ', .blc-row-champ').forEach((el) => el.remove());
+  layoutMode = '';
+  document.documentElement.classList.remove(TALL_STRIP);
+  document.querySelectorAll('.' + MID_ROW + ', .blc-mid-row-icon, .blc-row-champ').forEach((el) => el.remove());
   for (const el of midRowTouched) {
     const saved = midRowInline.get(el);
     if (!saved || !el.isConnected) continue;
@@ -512,6 +542,17 @@ function midRowHidden() {
   const room = chatRoom || findPostGameRoom();
   if (!room) return false;
   return room.classList.contains(COLLAPSED_CLASS) || !isChatOpen(room);
+}
+
+function tallStripActive() {
+  if (!settings.tallerChat || midRowHidden()) return false;
+  const room = chatRoom || findPostGameRoom();
+  return !!(room && room.classList.contains('blc-stretched') && !room.classList.contains(COLLAPSED_CLASS));
+}
+
+function scoreboardLayoutMode() {
+  if (midRowHidden()) return '';
+  return tallStripActive() ? 'strip' : 'mid';
 }
 
 function outerWidth(el) {
@@ -572,6 +613,9 @@ function tightenRuneGap(key) {
 function captureMidRowSizes(row, content) {
   const saved = midRowSizes.get(row);
   if (saved) return saved;
+  const root = document.documentElement;
+  const strip = root.classList.contains(TALL_STRIP);
+  if (strip) root.classList.remove(TALL_STRIP);
   const badge = content.querySelector(':scope > .' + MID_ROW);
   const next = badge?.nextSibling;
   if (badge) badge.remove();
@@ -580,8 +624,10 @@ function captureMidRowSizes(row, content) {
     controls: outerWidth(row.querySelector(CONTROLS_SEL)),
     actions: outerWidth(content.querySelector(ACTIONS_SEL)),
     items: outerWidth(content.querySelector(ITEMS_SEL)),
+    pike: outerWidth(content.querySelector(PIKE_SEL)),
   };
   if (badge) content.insertBefore(badge, next);
+  if (strip) root.classList.add(TALL_STRIP);
   midRowSizes.set(row, sizes);
   return sizes;
 }
@@ -603,28 +649,54 @@ function levelBoxWidth(realStyle) {
   return levelSlot;
 }
 
-function ensureMidRow(content, key) {
+function ensureChampIcon(row) {
+  let img = row.querySelector('.blc-mid-row-icon');
+  if (!img) {
+    img = document.createElement('img');
+    img.className = 'blc-mid-row-icon';
+    img.alt = '';
+    img.draggable = false;
+  }
+  return img;
+}
+
+function ensureMidRow(row, content, key) {
   let box = content.querySelector(':scope > .' + MID_ROW);
   if (!box) {
     box = document.createElement('div');
     box.className = MID_ROW;
     const level = document.createElement('span');
     level.className = MID_ROW + '-level';
-    const img = document.createElement('img');
-    img.className = MID_ROW + '-icon';
-    img.alt = '';
-    img.draggable = false;
-    box.append(level, img);
+    box.append(level);
   }
+  const img = ensureChampIcon(row);
+  if (img.parentElement !== box) box.append(img);
   if (box.nextElementSibling !== key) content.insertBefore(box, key);
   return box;
 }
 
+function paintChampIcon(img, iconSize, iconPath) {
+  img.style.width = iconSize + 'px';
+  img.style.height = iconSize + 'px';
+  if (img.getAttribute('src') !== iconPath) img.src = iconPath;
+}
+
+function placeStripIcon(detailsContent, img) {
+  const actions = [...detailsContent.children].find((el) => el.matches(ACTIONS_SEL));
+  if (img.parentElement !== detailsContent || img.nextElementSibling !== actions) {
+    detailsContent.insertBefore(img, actions || null);
+  }
+}
+
 function placeScoreboardIcons() {
-  if (midRowHidden()) {
-    clearScoreboardIcons();
+  const mode = scoreboardLayoutMode();
+  if (mode !== layoutMode) clearScoreboardIcons();
+  layoutMode = mode;
+  if (mode === 'strip') {
+    placeTallStrip();
     return;
   }
+  if (mode !== 'mid') return;
   const iconSize = champIconSize();
   const seen = new Set();
   document.querySelectorAll('.blc-row-champ').forEach((el) => el.remove());
@@ -640,9 +712,9 @@ function placeScoreboardIcons() {
     const levelNode = row.querySelector(LEVEL_SEL);
     const levelText = stripBidi(levelNode?.textContent || '').replace(/\s+/g, '');
     const sizes = captureMidRowSizes(row, content);
-    const box = ensureMidRow(content, key);
+    const box = ensureMidRow(row, content, key);
     const levelEl = box.querySelector('.' + MID_ROW + '-level');
-    const img = box.querySelector('.' + MID_ROW + '-icon');
+    const img = ensureChampIcon(row);
     const realStyle = levelNode ? getComputedStyle(levelNode) : null;
 
     levelEl.textContent = levelText;
@@ -656,9 +728,7 @@ function placeScoreboardIcons() {
       levelEl.style.width = levelBoxWidth(realStyle) + 'px';
     }
 
-    img.style.width = iconSize + 'px';
-    img.style.height = iconSize + 'px';
-    if (img.getAttribute('src') !== player.iconPath) img.src = player.iconPath;
+    paintChampIcon(img, iconSize, player.iconPath);
 
     const boxStyle = getComputedStyle(box);
     const badgeWidth = box.offsetWidth + parseFloat(boxStyle.marginLeft) + parseFloat(boxStyle.marginRight);
@@ -670,6 +740,60 @@ function placeScoreboardIcons() {
     seen.add(box);
   }
   document.querySelectorAll('.' + MID_ROW).forEach((el) => {
+    if (!seen.has(el)) el.remove();
+  });
+}
+
+function stripBadgeWidth(levelNode, iconSize) {
+  const levelW = levelNode ? levelBoxWidth(getComputedStyle(levelNode)) : 0;
+  return MID_GAP + levelW + MID_GAP + iconSize;
+}
+
+function placeTallStrip() {
+  const iconSize = champIconSize();
+  const rows = [];
+  for (const row of document.querySelectorAll(ROW_SEL)) {
+    const rowRect = row.getBoundingClientRect();
+    if (rowRect.width < 1 || rowRect.height < 1) continue;
+    const content = row.querySelector(CONTENT_SEL);
+    const key = content?.querySelector(KEY_SEL);
+    const pike = content?.querySelector(PIKE_SEL);
+    const detailsContent = content?.querySelector(DETAILS_CONTENT_SEL);
+    if (!content || !key || !pike || !detailsContent || key.parentElement !== content) continue;
+    rows.push({ row, content, key, detailsContent });
+  }
+  const mustMeasure = rows.some(({ row }) => !midRowSizes.has(row));
+  if (mustMeasure) document.documentElement.classList.remove(TALL_STRIP);
+
+  const seen = new Set();
+  const jobs = rows.map(({ row, content, key, detailsContent }) => {
+    const sizes = captureMidRowSizes(row, content);
+    return { row, content, key, detailsContent, sizes, player: playerForRow(row) };
+  });
+
+  document.documentElement.classList.add(TALL_STRIP);
+  document.querySelectorAll('.' + MID_ROW).forEach((el) => el.remove());
+
+  for (const { row, content, key, detailsContent, sizes, player } of jobs) {
+    const levelNode = row.querySelector(LEVEL_SEL);
+    if (levelNode) {
+      rememberMidRowInline(levelNode);
+      levelNode.style.width = levelBoxWidth(getComputedStyle(levelNode)) + 'px';
+    }
+    const badgeWidth = stripBadgeWidth(levelNode, iconSize);
+    const runeSpace = tightenRuneGap(key);
+    const stripRoom = STRIP_ACTIONS_PAD * 2;
+    applyOuterWidth(content.querySelector(DETAILS_SEL), sizes.details + sizes.pike + badgeWidth + stripRoom);
+    applyOuterWidth(row.querySelector(CONTROLS_SEL), sizes.controls);
+    applyOuterWidth(content.querySelector(ACTIONS_SEL), sizes.actions);
+    applyOuterWidth(content.querySelector(ITEMS_SEL), Math.max(0, sizes.items - badgeWidth - stripRoom + runeSpace));
+    if (!player?.iconPath) continue;
+    const img = ensureChampIcon(row);
+    placeStripIcon(detailsContent, img);
+    paintChampIcon(img, iconSize, player.iconPath);
+    seen.add(img);
+  }
+  document.querySelectorAll('.blc-mid-row-icon').forEach((el) => {
     if (!seen.has(el)) el.remove();
   });
 }
@@ -753,9 +877,11 @@ function stretchChat(room) {
 
   const input = room.querySelector('lol-social-chat-input');
   const inputH = Math.round(input?.getBoundingClientRect().height || 0);
+  syncCredit(room);
+  const creditH = creditBarHeight(room);
   setVar(room, '--blc-chat-top', `${Math.round(anchorTop - parentRect.top)}px`);
   setVar(room, '--blc-chat-h', `${height}px`);
-  setVar(room, '--blc-frame-h', `${Math.max(48, height - inputH)}px`);
+  setVar(room, '--blc-frame-h', `${Math.max(48, height - inputH - creditH)}px`);
   if (!room.classList.contains('blc-stretched')) {
     withFrozenScroll(() => room.classList.add('blc-stretched'));
   }
@@ -868,31 +994,6 @@ function expandWindow(room = findPostGameRoom()) {
   syncCredit(room);
 }
 
-function toggleFullWindow(room = findPostGameRoom()) {
-  if (!room) return;
-  if (windowCollapsed || !isChatOpen(room) || room.classList.contains(COLLAPSED_CLASS)) {
-    expandWindow(room);
-  } else {
-    collapseWindow(room);
-  }
-}
-
-function onToggleIntercept(event) {
-  if (!inPostGame || !settings.stickyChat) return;
-  const room = findPostGameRoom();
-  if (!room) return;
-  const toggle = event.target?.closest?.(TOGGLE_SEL);
-  if (!toggle || !room.contains(toggle)) return;
-
-  event.preventDefault();
-  event.stopPropagation();
-  event.stopImmediatePropagation();
-
-  if (event.type === 'pointerdown' && event.button === 0) {
-    toggleFullWindow(room);
-  }
-}
-
 function onInputOpen(event) {
   if (!inPostGame || !windowCollapsed) return;
   if (event.type === 'pointerdown' && event.button !== 0) return;
@@ -907,7 +1008,7 @@ function onInputOpen(event) {
 }
 
 function onHostPointerDown(event) {
-  if (event.target?.closest?.('#blc-options')) return;
+  if (event.target?.closest?.('#blc-options, #blc-update-dialog, #blc-options-cog')) return;
   const menuWasOpen = optionsAreOpen();
   closeOptions();
   if (settings.stickyChat || !inPostGame || windowCollapsed) return;
@@ -921,7 +1022,6 @@ function onOutsidePointerDown(event) {
   if (!inPostGame || !settings.stickyChat || !onScoreboard || windowCollapsed) return;
   const room = findPostGameRoom();
   if (!room || (!settings.autoOpen && !isChatOpen(room))) return;
-  if (event.target?.closest?.(TOGGLE_SEL)) return;
   if (room.contains(event.target)) return;
   withFrozenScroll(() => forceFocusedClass(room));
 }
@@ -930,7 +1030,6 @@ function onOutsidePointerUp(event) {
   if (!inPostGame || !settings.stickyChat || !onScoreboard || windowCollapsed) return;
   const room = findPostGameRoom();
   if (!room || (!settings.autoOpen && !isChatOpen(room))) return;
-  if (event.target?.closest?.(TOGGLE_SEL)) return;
 
   if (!room.contains(event.target)) burstRestoreFocus(room);
 }
@@ -983,6 +1082,12 @@ function chatWindowIsFocused(room = findPostGameRoom()) {
 function onEscape(event) {
   if (event.key !== 'Escape') return;
   if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
+  if (updateDialogIsOpen()) {
+    event.preventDefault();
+    event.stopPropagation();
+    closeUpdateDialog();
+    return;
+  }
   if (optionsAreOpen()) {
     closeOptions();
     return;
@@ -1015,19 +1120,24 @@ function enhance() {
   if (!inPostGame || applying) return;
   applying = true;
   try {
+    annotateHonorTooltip();
     const room = findPostGameRoom();
     if (!room) return;
     chatRoom = room;
     ensurePlayerMessagesVisible(room);
-    stripRoomChangedJoinNoise(room);
     hookMessageFrame(room);
     const doc = getFrameDocument(room);
     if (doc) {
       injectFrameStyles(doc);
-      insertCredit(doc);
+      applyFrameSettings(doc);
+      hookFrameOptions(doc);
+      syncOptionsScrollbar(doc);
       rewriteMessages(doc);
+      installScrollHold(doc);
       mountUpdateNotice(doc);
+      mountNotice(doc);
     }
+    insertCredit(room);
   } catch (err) {
     console.warn(LOG, err);
   } finally {
@@ -1035,18 +1145,46 @@ function enhance() {
   }
 }
 
-function stripRoomChangedJoinNoise(room) {
-  const raw = room.getAttribute('room-changed-messages');
-  if (!raw) return;
-  try {
-    const arr = JSON.parse(raw);
-    if (!Array.isArray(arr)) return;
-    const filtered = arr.filter((s) => !isJoinNotice(String(s)));
-    if (filtered.length !== arr.length) {
-      room.setAttribute('room-changed-messages', JSON.stringify(filtered));
+function plainText(value) {
+  return stripBidi(value).replace(/\s+/g, ' ').trim();
+}
+
+// Honor pips hover a name-only system tooltip. The same player-name span is on
+// scoreboard rows; those stay outside #lol-uikit-tooltip-root.
+function annotateHonorTooltip() {
+  const root = document.getElementById('lol-uikit-tooltip-root');
+  if (!root) return;
+  const blocks = root.querySelectorAll('lol-uikit-content-block[type="tooltip-system"]');
+  for (const block of blocks) {
+    const names = block.querySelectorAll('p .player-name__game-name');
+    if (names.length !== 1) continue;
+    const nameEl = names[0];
+    const gameName = plainText(nameEl.textContent);
+    if (!gameName) continue;
+    const note = nameEl.nextElementSibling?.classList?.contains('blc-honor-champ')
+      ? nameEl.nextElementSibling
+      : null;
+    let extra = plainText(block.textContent);
+    const noteText = note ? plainText(note.textContent) : '';
+    if (noteText && extra.endsWith(noteText)) extra = plainText(extra.slice(0, -noteText.length));
+    if (extra !== gameName) {
+      note?.remove();
+      continue;
     }
-  } catch {
-    /* ignore */
+    const champ = matchAlias(gameName)?.player?.championName;
+    if (!champ || champ === 'Unknown') {
+      note?.remove();
+      continue;
+    }
+    const label = ` (${champ})`;
+    if (note) {
+      if (note.textContent !== label) note.textContent = label;
+      continue;
+    }
+    const span = nameEl.ownerDocument.createElement('span');
+    span.className = 'blc-honor-champ';
+    span.textContent = label;
+    nameEl.after(span);
   }
 }
 
@@ -1070,6 +1208,7 @@ function hookMessageFrame(room) {
     const doc = getFrameDocument(room);
     if (!doc) return;
     armFrameEscape(doc);
+    installScrollHold(doc);
     if (frameObservers.has(doc)) return;
     const mo = new MutationObserver(() => {
       if (!inPostGame || applying) return;
@@ -1082,7 +1221,10 @@ function hookMessageFrame(room) {
     });
     frameObservers.set(doc, mo);
     injectFrameStyles(doc);
-    insertCredit(doc);
+    applyFrameSettings(doc);
+    hookFrameOptions(doc);
+    syncOptionsScrollbar(doc);
+    insertCredit(room);
   };
 
   iframe.addEventListener('load', attach);
@@ -1095,78 +1237,49 @@ function hookMessageFrame(room) {
   }, 250);
 }
 
-function scrollParent(el) {
-  let node = el?.parentElement;
-  const doc = el?.ownerDocument;
-  while (node && node !== doc?.documentElement) {
-    const style = doc.defaultView?.getComputedStyle(node);
-    if (style && /(auto|scroll)/.test(style.overflowY)) return node;
-    node = node.parentElement;
-  }
-  return doc?.scrollingElement || doc?.body || null;
+function creditElement(room = chatRoom || findPostGameRoom()) {
+  return getChatBox(room)?.querySelector(':scope > #blc-credit') || null;
 }
 
-function insertCredit(doc) {
-  applyFrameSettings(doc);
-  const host = doc.documentElement || doc.body;
-  if (!host) return;
-  let el = doc.getElementById('blc-credit');
+function creditBarHeight(room) {
+  const el = creditElement(room);
+  if (!el) return 0;
+  return Math.round(el.getBoundingClientRect().height);
+}
+
+function insertCredit(room) {
+  const box = getChatBox(room);
+  if (!box) return;
+  let el = document.getElementById('blc-credit');
   if (!el) {
-    el = doc.createElement('div');
+    el = document.createElement('div');
     el.id = 'blc-credit';
     el.className = 'blc-credit';
   }
-  attachCreditChrome(doc, el);
-  if (el.parentElement !== host) host.appendChild(el);
-  applyCreditFont(doc, el);
-  syncOptionsScrollbar(doc);
-  syncCredit(roomForCredit(doc) || chatRoom);
-}
-
-function roomForCredit(doc) {
-  const room = chatRoom || findPostGameRoom();
-  if (room && getFrameDocument(room) === doc) return room;
-  return null;
-}
-
-function syncCreditPadding(doc, el, hidden) {
-  const scroller = scrollParent(doc.querySelector('.message-box') || el);
-  if (!scroller || scroller === el) return;
-  if (!scroller.dataset.blcCreditPad) {
-    const base = parseFloat(doc.defaultView?.getComputedStyle(scroller).paddingTop) || 0;
-    scroller.dataset.blcCreditPad = String(base);
+  const iframe = box.querySelector(FRAME_SEL);
+  if (el.parentElement !== box || (iframe && el.nextElementSibling !== iframe)) {
+    box.insertBefore(el, iframe || null);
   }
-  const base = parseFloat(scroller.dataset.blcCreditPad) || 0;
-  const next = hidden ? `${base}px` : `${base + (el.offsetHeight || 22)}px`;
-  if (scroller.style.paddingTop !== next) scroller.style.paddingTop = next;
-}
-
-function applyCreditFont(doc, el) {
-  const sample = doc.querySelector('.chat-message .message, .chat-message, .system-message, .message-name');
-  const cs = sample ? doc.defaultView?.getComputedStyle(sample) : null;
-  const label = el.querySelector('.blc-credit-label');
-  if (label && cs) {
-    label.style.fontFamily = cs.fontFamily;
-    label.style.fontSize = cs.fontSize;
-    label.style.fontStyle = cs.fontStyle;
-    label.style.letterSpacing = cs.letterSpacing;
-    label.style.lineHeight = cs.lineHeight;
-  }
-  const panel = document.getElementById('blc-options');
-  if (panel && cs) {
-    panel.style.fontFamily = cs.fontFamily;
-    panel.style.fontStyle = cs.fontStyle;
-    panel.style.letterSpacing = cs.letterSpacing;
-  }
+  attachCreditChrome(el);
+  syncCredit(room);
 }
 
 function syncCredit(room = chatRoom) {
-  const doc = room ? getFrameDocument(room) : null;
-  const el = doc?.getElementById('blc-credit');
+  const el = creditElement(room);
   if (!el) return;
   const hidden = !room || windowCollapsed || !isChatOpen(room);
   el.classList.toggle('blc-credit-hidden', hidden);
-  syncCreditPadding(doc, el, hidden);
+}
+
+function retireFrameCredit(doc) {
+  doc.getElementById('blc-credit')?.remove();
+  doc.getElementById('blc-frame-font')?.remove();
+  const padded = doc.querySelector('[data-blc-credit-pad]');
+  if (!padded) return;
+  const base = padded.dataset.blcCreditPad;
+  if (base) padded.style.paddingTop = `${parseFloat(base) || 0}px`;
+  else padded.style.removeProperty('padding-top');
+  delete padded.dataset.blcCreditPad;
 }
 
 function injectFrameStyles(doc) {
@@ -1177,4 +1290,5 @@ function injectFrameStyles(doc) {
     (doc.head || doc.documentElement).appendChild(style);
   }
   if (style.textContent !== frameCss) style.textContent = frameCss;
+  retireFrameCredit(doc);
 }

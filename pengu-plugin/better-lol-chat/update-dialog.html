@@ -1,0 +1,38 @@
+<div id="blc-update-dialog" class="blc-dialog" role="dialog" aria-modal="true" aria-labelledby="blc-dialog-title" hidden>
+  <lol-uikit-dialog-frame class="dialog-frame" orientation="bottom" close-button>
+    <div class="dialog-content">
+      <lol-uikit-content-block class="blc-dialog-block" type="dialog-small">
+        <h4 id="blc-dialog-title" data-blc-text="title">UPDATE AVAILABLE</h4>
+        <hr class="heading-spacer">
+
+        <div class="blc-dialog-view">
+          <p class="blc-dialog-sub" data-blc-text="subtitle"></p>
+          <div class="blc-dialog-notes-frame">
+            <lol-uikit-scrollable class="blc-dialog-notes" overflow-masks="enabled">
+              <div class="blc-dialog-notes-text">
+                <p class="blc-dialog-notes-heading" data-blc-notes="heading" hidden></p>
+                <div class="blc-dialog-notes-body" data-blc-notes="body"></div>
+              </div>
+            </lol-uikit-scrollable>
+          </div>
+        </div>
+      </lol-uikit-content-block>
+    </div>
+
+    <div class="blc-dialog-actions" data-blc-view="notes">
+      <div class="blc-dialog-buttons">
+        <lol-uikit-flat-button class="button-accept" data-blc-action="download">DOWNLOAD NOW</lol-uikit-flat-button>
+        <lol-uikit-flat-button class="button-decline" data-blc-action="release">VIEW ON GITHUB</lol-uikit-flat-button>
+      </div>
+      <button type="button" class="blc-dialog-link blc-dialog-skip" data-blc-action="skip">Skip this update</button>
+    </div>
+    <div class="blc-dialog-install" data-blc-view="done" hidden>
+      <p class="blc-dialog-started"><span class="blc-dialog-check" aria-hidden="true"></span>Download initiated.</p>
+      <p>Run <span data-blc-text="installer">the installer</span> to install.<br>Then press Ctrl + R in the client to load the update.</p>
+      <p class="blc-dialog-fallback">
+        Download failed?
+        <button type="button" class="blc-dialog-link" data-blc-action="release">Go to release page.</button>
+      </p>
+    </div>
+  </lol-uikit-dialog-frame>
+</div>
