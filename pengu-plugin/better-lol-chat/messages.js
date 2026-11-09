@@ -206,8 +206,66 @@ function withIcon(icon, parts, wrapClass) {
   return [{ className: wrapClass, parts: [icon, ...parts] }];
 }
 
+function opggUrl(text, player) {
+  const cleaned = stripBidi(text).replace(/\s+/g, ' ').trim();
+  const hash = cleaned.indexOf('#');
+  let name = hash === -1 ? cleaned : cleaned.slice(0, hash).trim();
+  let tag = hash === -1 ? '' : cleaned.slice(hash + 1).trim();
+
+  if (player) {
+    if (!name || (player.championName && name.toLowerCase() === player.championName.toLowerCase())) {
+      name = player.gameName || '';
+    }
+    if (!tag) tag = player.tagLine || '';
+    if ((!name || !tag) && Array.isArray(player.aliases)) {
+      const full = player.aliases.find((a) => String(a || '').includes('#'));
+      if (full) {
+        const h = full.indexOf('#');
+        if (!name) name = full.slice(0, h).trim();
+        if (!tag) tag = full.slice(h + 1).trim();
+      } else if (!name && player.aliases[0]) {
+        name = String(player.aliases[0]).trim();
+      }
+    }
+  }
+
+  if (!name) return '';
+  const region = encodeURIComponent(settings.opggRegion || 'na');
+  const target = tag ? `${name}-${tag}` : name;
+  return `https://www.op.gg/summoners/${region}/${encodeURIComponent(target)}`;
+}
+
+function setOpggLink(el, url) {
+  if (!el) return;
+  if (url) {
+    el.dataset.blcOpgg = url;
+    el.setAttribute('role', 'link');
+    el.classList.add('blc-opgg-link');
+  } else {
+    delete el.dataset.blcOpgg;
+    el.removeAttribute('role');
+    el.classList.remove('blc-opgg-link');
+  }
+}
+
+function hookOpggLinks(root) {
+  const doc = root?.ownerDocument || root;
+  const docEl = doc?.documentElement;
+  if (!docEl || docEl.dataset.blcOpggHooked === '1') return;
+  docEl.dataset.blcOpggHooked = '1';
+  doc.addEventListener('click', (event) => {
+    const link = event.target?.closest?.('[data-blc-opgg]');
+    const url = link?.dataset?.blcOpgg;
+    if (!url) return;
+    event.preventDefault();
+    event.stopPropagation();
+    window.open(url, '_blank', 'noopener');
+  });
+}
+
 function paintChatName(el, original, player) {
   paintParts(el, withIcon(iconPart(player), nameParts(original, player)));
+  setOpggLink(el, opggUrl(original, player));
 }
 
 function rewriteNames(root) {
@@ -221,11 +279,15 @@ function rewriteNames(root) {
       player = resolvePlayer(stripBidi(original).trim());
     } else if (aliases().length) {
       const match = matchAlias(stripBidi(el.textContent || '').trim());
-      if (!match) continue;
+      if (!match) {
+        setOpggLink(el, opggUrl(el.textContent, null));
+        continue;
+      }
       original = el.textContent;
       el.dataset.blcOriginal = original;
       player = match.player;
     } else {
+      setOpggLink(el, opggUrl(el.textContent, null));
       continue;
     }
     paintChatName(el, original, player);
@@ -292,12 +354,14 @@ function resolvePlayer(text) {
 }
 
 function paintLeaveLine(span, player, mention) {
-  const split = Boolean(showsChampion() && player?.championName && mention && mention.end > mention.start);
+  const whole = mention?.normalized || normalizeLobbyText(span.dataset.blcOriginal || span.textContent || '');
+  const split = Boolean(mention && mention.end > mention.start);
   if (!split) {
-    const whole = mention?.normalized || normalizeLobbyText(span.dataset.blcOriginal || span.textContent || '');
     paintParts(span, withIcon(iconPart(player), nameParts(whole, player)));
+    setOpggLink(span, opggUrl(whole, player));
     return;
   }
+  setOpggLink(span, '');
   const name = mention.normalized.slice(mention.start, mention.end);
   const before = mention.normalized.slice(0, mention.start);
   const after = mention.normalized.slice(mention.end);
@@ -308,6 +372,8 @@ function paintLeaveLine(span, player, mention) {
   );
   if (after) parts.push(textPart(after));
   paintParts(span, parts);
+  const target = span.querySelector('.blc-leave-label') || span.querySelector('.blc-system-name');
+  setOpggLink(target, opggUrl(name, player));
 }
 
 // A player joins once, then may leave. The first system line with their Riot ID
@@ -349,6 +415,7 @@ function rewriteLobbyMessages(root) {
 }
 
 export function rewriteMessages(root) {
+  hookOpggLinks(root);
   rewriteNames(root);
   rewriteLobbyMessages(root);
   // Stored Riot IDs (data-blc-original) still match after the visible text

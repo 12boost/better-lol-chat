@@ -20,6 +20,24 @@ const COLOR_VARS = {
 
 const TOGGLE_KEYS = ['tallerChat', 'showMidRow', 'strongDim', 'autoOpen', 'stickyChat', 'pauseScroll', 'showChatIcons'];
 
+export const OPGG_REGIONS = new Set([
+  'na',
+  'euw',
+  'eune',
+  'kr',
+  'br',
+  'lan',
+  'las',
+  'oce',
+  'tr',
+  'ru',
+  'jp',
+  'sg',
+  'tw',
+  'vn',
+  'me',
+]);
+
 export function normalizeHex(value, allowShort) {
   const match = String(value || '').trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6})$/i);
   if (!match) return null;
@@ -76,6 +94,7 @@ function loadSettings() {
     autoOpen: true,
     stickyChat: true,
     pauseScroll: true,
+    opggRegion: 'na',
     skippedUpdate: '',
     notice: emptyNoticeState(),
     colors: { ...COLOR_DEFAULTS },
@@ -89,6 +108,10 @@ function loadSettings() {
     }
     for (const key of TOGGLE_KEYS) {
       if (typeof saved[key] === 'boolean') next[key] = saved[key];
+    }
+    if (typeof saved.opggRegion === 'string') {
+      const region = saved.opggRegion.trim().toLowerCase();
+      if (OPGG_REGIONS.has(region)) next.opggRegion = region;
     }
     if (typeof saved.coloredBodies === 'boolean') next.coloredBodies = saved.coloredBodies;
     if (saved.nameStyle === 'summoner' || saved.nameStyle === 'champion' || saved.nameStyle === 'both') {

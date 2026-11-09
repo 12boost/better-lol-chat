@@ -3,6 +3,7 @@ import panelHtml from './options.html?raw';
 import { mountUpdateStatus } from './update.js';
 import {
   COLOR_DEFAULTS,
+  OPGG_REGIONS,
   applyFrameSettings,
   applyHostSettings,
   normalizeHex,
@@ -35,7 +36,6 @@ let bugTipTimer = 0;
 
 let deps = {
   version: '',
-  creditText: '',
   getRoom: () => null,
   getFrameDocument: () => null,
   onCommit: () => {},
@@ -128,6 +128,7 @@ function findResetPaint() {
 export function closeOptions() {
   const panel = document.getElementById('blc-options');
   if (!panel || panel.hidden) return;
+  closeDropdowns(panel);
   panel.hidden = true;
   hideBugTip();
   document.getElementById('blc-options-cog')?.setAttribute('aria-expanded', 'false');
@@ -203,6 +204,64 @@ function bindNameChoice(input) {
   });
 }
 
+function closeDropdowns(scope = document.getElementById('blc-options'), except = null) {
+  if (!scope) return;
+  scope.querySelectorAll('.blc-dropdown').forEach((dropdown) => {
+    if (dropdown === except) return;
+    dropdown.querySelector('.blc-dropdown-menu')?.setAttribute('hidden', '');
+    dropdown.querySelector('.blc-dropdown-trigger')?.setAttribute('aria-expanded', 'false');
+  });
+}
+
+function bindDropdown(dropdown) {
+  const key = dropdown.dataset.blcSelect;
+  if (!key || !(key in settings)) return;
+  const trigger = dropdown.querySelector('.blc-dropdown-trigger');
+  const label = dropdown.querySelector('.blc-dropdown-value');
+  const menu = dropdown.querySelector('.blc-dropdown-menu');
+  const items = [...dropdown.querySelectorAll('.blc-dropdown-item')];
+  if (!trigger || !label || !menu || !items.length) return;
+
+  const sync = (val) => {
+    let matched = items[0];
+    for (const item of items) {
+      const active = item.dataset.value === val;
+      item.setAttribute('aria-selected', active ? 'true' : 'false');
+      if (active) matched = item;
+    }
+    label.textContent = matched.textContent;
+  };
+
+  sync(settings[key]);
+
+  trigger.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const willOpen = menu.hidden;
+    closeDropdowns(dropdown.closest('#blc-options'), dropdown);
+    menu.hidden = !willOpen;
+    trigger.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+    if (willOpen) {
+      const selected = menu.querySelector('[aria-selected="true"]');
+      selected?.scrollIntoView?.({ block: 'nearest' });
+    }
+  });
+
+  for (const item of items) {
+    item.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const val = String(item.dataset.value || '').trim().toLowerCase();
+      if (key === 'opggRegion' && !OPGG_REGIONS.has(val)) return;
+      settings[key] = val;
+      sync(val);
+      menu.hidden = true;
+      trigger.setAttribute('aria-expanded', 'false');
+      commitSettings();
+    });
+  }
+}
+
 function syncMessageColorLock(root) {
   const scope = root || document.getElementById('blc-options');
   if (!scope) return;
@@ -257,10 +316,6 @@ function bindColorRow(row, resetPaint) {
 function buildCreditChrome(el) {
   el.replaceChildren();
 
-  const label = document.createElement('span');
-  label.className = 'blc-credit-label';
-  label.textContent = deps.creditText;
-
   const cog = document.createElement('button');
   cog.type = 'button';
   cog.id = 'blc-options-cog';
@@ -294,7 +349,7 @@ function buildCreditChrome(el) {
   const tools = document.createElement('div');
   tools.className = 'blc-credit-tools';
   tools.append(cog, close);
-  el.append(label, tools);
+  el.append(tools);
   paintCog(cog);
   paintClose(close);
   ensureOptionsPanel();
@@ -412,12 +467,14 @@ function ensureOptionsPanel() {
   panel.dataset.blcChrome = chromeToken;
 
   panel.querySelectorAll('[data-blc-toggle]').forEach(bindToggle);
+  panel.querySelectorAll('.blc-dropdown[data-blc-select]').forEach(bindDropdown);
   panel.querySelectorAll('input[name="blc-name-style"]').forEach(bindNameChoice);
   const resetPaint = findResetPaint();
   panel.querySelectorAll('.blc-color-row').forEach((row) => bindColorRow(row, resetPaint));
   syncMessageColorLock(panel);
 
   panel.addEventListener('pointerdown', (event) => {
+    if (!event.target?.closest?.('.blc-dropdown')) closeDropdowns(panel);
     const field = event.target?.closest?.('input[type="text"], input[type="color"], textarea, .blc-bug-report');
     if (field) return;
     event.preventDefault();
@@ -479,7 +536,9 @@ export function syncOptionsScrollbar(frameDoc) {
   const fromMessages = found.filter((rule) => rule.fromMessages);
   const rules = fromMessages.length ? fromMessages : found;
   if (!rules.length) return;
-  const css = rules.map((rule) => rule.text).join('\n');
+  const css = rules
+    .flatMap((rule) => [rule.text, rule.text.replace(/\.blc-options-body\b/g, '.blc-dropdown-menu')])
+    .join('\n');
   let style = document.getElementById('blc-options-scrollbar');
   if (!style) {
     style = document.createElement('style');

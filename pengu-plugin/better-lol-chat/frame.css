@@ -26,6 +26,15 @@
   color: var(--blc-name-mine) !important;
 }
 
+.blc-opgg-link {
+  cursor: pointer;
+}
+
+.blc-opgg-link:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .blc-champ-icon {
   display: inline-block;
   width: 1.75em;

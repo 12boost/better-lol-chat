@@ -20,7 +20,6 @@ import { closeUpdateDialog, updateDialogIsOpen } from './update-dialog.js';
 
 const LOG = '[better-lol-chat]';
 const VERSION = '1.0';
-const CREDIT_TEXT = `better-lol-chat by wryguy`;
 const POSTGAME_PHASES = new Set([
   'WaitingForStats',
   'PreEndOfGame',
@@ -54,7 +53,6 @@ window.__blcSeedRoster = (entries) => {
 
 initOptions({
   version: VERSION,
-  creditText: CREDIT_TEXT,
   getRoom: () => chatRoom || findPostGameRoom(),
   getFrameDocument,
   onCommit() {
@@ -878,10 +876,9 @@ function stretchChat(room) {
   const input = room.querySelector('lol-social-chat-input');
   const inputH = Math.round(input?.getBoundingClientRect().height || 0);
   syncCredit(room);
-  const creditH = creditBarHeight(room);
   setVar(room, '--blc-chat-top', `${Math.round(anchorTop - parentRect.top)}px`);
   setVar(room, '--blc-chat-h', `${height}px`);
-  setVar(room, '--blc-frame-h', `${Math.max(48, height - inputH - creditH)}px`);
+  setVar(room, '--blc-frame-h', `${Math.max(48, height - inputH)}px`);
   if (!room.classList.contains('blc-stretched')) {
     withFrozenScroll(() => room.classList.add('blc-stretched'));
   }
@@ -1069,7 +1066,12 @@ function foreignTextEntry(room) {
   if (!active || active === document.body || active === document.documentElement) return false;
   if (room?.contains(active)) return false;
   if (active.closest?.('#blc-options')) return false;
-  return active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || !!active.isContentEditable;
+  return (
+    active.tagName === 'INPUT' ||
+    active.tagName === 'TEXTAREA' ||
+    active.tagName === 'SELECT' ||
+    !!active.isContentEditable
+  );
 }
 
 function chatWindowIsFocused(room = findPostGameRoom()) {
@@ -1241,12 +1243,6 @@ function creditElement(room = chatRoom || findPostGameRoom()) {
   return getChatBox(room)?.querySelector(':scope > #blc-credit') || null;
 }
 
-function creditBarHeight(room) {
-  const el = creditElement(room);
-  if (!el) return 0;
-  return Math.round(el.getBoundingClientRect().height);
-}
-
 function insertCredit(room) {
   const box = getChatBox(room);
   if (!box) return;
@@ -1257,8 +1253,8 @@ function insertCredit(room) {
     el.className = 'blc-credit';
   }
   const iframe = box.querySelector(FRAME_SEL);
-  if (el.parentElement !== box || (iframe && el.nextElementSibling !== iframe)) {
-    box.insertBefore(el, iframe || null);
+  if (el.parentElement !== box || (iframe && iframe.nextElementSibling !== el)) {
+    box.insertBefore(el, iframe ? iframe.nextSibling : null);
   }
   attachCreditChrome(el);
   syncCredit(room);

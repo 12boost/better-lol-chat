@@ -33,8 +33,13 @@ export function seedRoster(entries) {
     if (!summoner) continue;
     const key = summoner.toLowerCase();
     if (seedEntries.some((saved) => saved.summoner.toLowerCase() === key)) continue;
+    const hash = summoner.indexOf('#');
+    const gameName = (hash === -1 ? summoner : summoner.slice(0, hash)).trim();
+    const tagLine = hash === -1 ? '' : summoner.slice(hash + 1).trim();
     seedEntries.push({
       summoner,
+      gameName,
+      tagLine,
       championName: String(entry?.champion || '').trim(),
       iconPath: String(entry?.iconPath || ''),
       ally: entry?.ally === true,
@@ -52,6 +57,8 @@ function applySeeds() {
       if ((!existing.championName || existing.championName === 'Unknown') && entry.championName) {
         existing.championName = entry.championName;
       }
+      if (!existing.gameName && entry.gameName) existing.gameName = entry.gameName;
+      if (!existing.tagLine && entry.tagLine) existing.tagLine = entry.tagLine;
       continue;
     }
     const player = {
@@ -61,6 +68,8 @@ function applySeeds() {
       championName: entry.championName || 'Unknown',
       iconPath: entry.iconPath,
       ally: entry.ally,
+      gameName: entry.gameName,
+      tagLine: entry.tagLine,
       aliases: [entry.summoner],
     };
     roster.push(player);
@@ -177,6 +186,22 @@ function collectPlayers(eog, me, champNames, champIcons) {
       raw.displayName,
       raw.riotId,
     ]);
+    const riotId = String(raw.riotId || '').trim();
+    const riotHash = riotId.indexOf('#');
+    const gameName = String(
+      raw.riotIdGameName ||
+        raw.gameName ||
+        (riotHash > 0 ? riotId.slice(0, riotHash) : riotId) ||
+        raw.summonerName ||
+        raw.displayName ||
+        '',
+    ).trim();
+    const tagLine = String(
+      raw.riotIdTagLine ||
+        raw.tagLine ||
+        (riotHash !== -1 ? riotId.slice(riotHash + 1) : '') ||
+        '',
+    ).trim();
     list.push({
       puuid: raw.puuid || raw.playerPuuid || null,
       summonerId: raw.summonerId ?? raw.userId ?? null,
@@ -184,6 +209,8 @@ function collectPlayers(eog, me, champNames, champIcons) {
       championName,
       iconPath,
       ally: allyHint,
+      gameName,
+      tagLine,
       aliases: playerAliases,
     });
   };

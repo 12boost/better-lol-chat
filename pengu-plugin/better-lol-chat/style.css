@@ -33,39 +33,24 @@ lol-social-chat-room[type='postGame'].blc-stretched:not(.blc-collapsed) lol-soci
   flex: 0 0 auto !important;
 }
 
-/* 14px is the 12px message size plus 2px. LoL Body at 12px reads small here. */
-.blc-credit {
+lol-social-chat-room[type='postGame'] .chat-box {
   position: relative;
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  box-sizing: border-box;
-  margin: 0;
-  padding: 4px 50px 6px;
-  overflow: visible;
-  color: #e6d08c;
-  background-image: linear-gradient(to bottom, #231281, rgb(1 10 19 / 95%));
-  font-family: var(--font-body);
-  font-size: 12px;
-  font-weight: 700;
-  font-style: normal;
-  letter-spacing: 0.025em;
 }
 
-.blc-credit-label {
+.blc-credit {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  margin: 0;
+  padding: 0;
   pointer-events: none;
 }
 
 .blc-credit-tools {
-  position: absolute;
-  right: 6px;
-  top: 50%;
-  transform: translateY(-50%);
   display: flex;
   align-items: center;
   gap: 4px;
+  pointer-events: auto;
 }
 
 .blc-options-cog,
